@@ -23,9 +23,7 @@ void Ecall_Init_Upload(int indexType) {
     switch (indexType) {
         
         case FREQ_INDEX: {
-            
             enclaveBaseObj_ = new EcallFreqIndex();
-            // Enclave::Logging("Debug", "new enclave base, fp ocall: %u\n", enclaveBaseObj_->_Inline_FPOcall);
             break;
         }
 
@@ -266,16 +264,6 @@ void Ecall_GetEnclaveInfo(EnclaveInfo_t* info) {
     info->onlineCompress_size = enclaveBaseObj_->_onlineCompress_size;
     info->Online_DeltaSaveSize = enclaveBaseObj_->_Online_DeltaSaveSize;
     info->inline_Ocall = enclaveBaseObj_->_Inline_Ocall;
-    info->_Inline_FPOcall =     enclaveBaseObj_->_Inline_FPOcall;
-    info->_Inline_SFOcall =     enclaveBaseObj_->_Inline_SFOcall;
-    info->_Inline_LocalOcall =  enclaveBaseObj_->_Inline_LocalOcall;
-    info->_Inline_LoadOcall =   enclaveBaseObj_->_Inline_LoadOcall;
-    info->_Inline_DeltaOcall =  enclaveBaseObj_->_Inline_DeltaOcall;
-    info->_Inline_RecipeOcall = enclaveBaseObj_->_Inline_RecipeOcall;
-    info->_inline_have_similar_chunk_num = enclaveBaseObj_->_inline_have_similar_chunk_num;
-    info->_inline_need_load_container_num = enclaveBaseObj_->_inline_need_load_container_num;
-    info->_inlineDeltaChunkNum = enclaveBaseObj_->_inlineDeltaChunkNum;
-    // info->_inline_average_similarity = enclaveBaseObj_->_inline_total_similarity / enclaveBaseObj_->_inline_batch_num * 1.0;
 
 #if(EDR_BREAKDOWN == 1)
     double rawOcallTime = enclaveBaseObj_->_testOCallTime / 
@@ -392,7 +380,7 @@ void Ecall_GetOfflineInfo(EnclaveInfo_t* info){
     info->lz4SaveSize = enclaveBaseObj_->offlinebackOBj_->_lz4SaveSize;
     info->DeltaSaveSize = enclaveBaseObj_->offlinebackOBj_->_DeltaSaveSize;
     info->offline_Ocall = enclaveBaseObj_->offlinebackOBj_->_offline_Ocall;
-    
+
 }
 
 void Ecall_UpdateOnlineInfo(){

@@ -99,7 +99,7 @@ void htable::init(int offset,int nhlen, int tsize)
 	    index = (*(uint64_t*) key* 2654435761U) & mask;
 	        void *point =NULL;
 		    float distance=1;
-//		    printf("======================\n");
+//		    // printf("======================\n");
 		    hlink *pre=NULL;
 		        for (hlink *hp=table[index]; hp;pre=hp,hp=(hlink *)hp->next)
 				    {            
@@ -109,12 +109,12 @@ void htable::init(int offset,int nhlen, int tsize)
 
 					           i++; 
 					            if(*(uint64_t *)(key)  ==  *(uint64_t *)( hp->key))
-							            { //	 printf("i:%d\n",i);
+							            { //	 // printf("i:%d\n",i);
 
 									    if(pre==NULL) table[index]=(hlink *)hp->next;
 									    else pre->next=(hlink *)hp->next;
-										//printf("dis:%.9f\n",fabs(hp->position-pos));						
-									   // printf("hash:%ld\n",*(uint64_t *)( hp->key));
+										//// printf("dis:%.9f\n",fabs(hp->position-pos));						
+									   // // printf("hash:%ld\n",*(uint64_t *)( hp->key));
 									                if(fabs(hp->position-pos)<distance)
 												            {
 														                    point=((char *)hp)-loffset;
@@ -128,9 +128,9 @@ void htable::init(int offset,int nhlen, int tsize)
 			
     				    }
 			 
-		//	printf("dis:%.9f\n",distance);	
-	//	printf("i:%d\n",i);
-	//	printf("======================\n");
+		//	// printf("dis:%.9f\n",distance);	
+	//	// printf("i:%d\n",i);
+	//	// printf("======================\n");
 
 
 			    return point;
@@ -188,9 +188,9 @@ void htable::stats()
       }
    }
    for (i=0; i < MAX_COUNT; i++) {
-      // printf("%2d:           %d\n",i, hits[i]);
+      // // printf("%2d:           %d\n",i, hits[i]);
    }
-   // printf("max hits in a bucket = %d\n", max);
+   // // printf("max hits in a bucket = %d\n", max);
 }
 
 void htable::grow_table()
@@ -245,7 +245,7 @@ bool htable::insert(unsigned char *key, void *item)
 
    /*if(key==NULL)
    {
-   		printf("%s,%d:Insert key==NULL\n",__FILE__,__LINE__);
+   		// printf("%s,%d:Insert key==NULL\n",__FILE__,__LINE__);
    		return false;
    }*/
    //hash_index(key);
@@ -262,7 +262,7 @@ bool htable::insert(unsigned char *key, void *item)
    table[index] = hp;
 
    if (++num_items >= max_items) {
-      //printf("%s,%d:grow_table_hash num_items=%d max_items=%d\n", __FILE__,__LINE__,num_items, max_items);
+      //// printf("%s,%d:grow_table_hash num_items=%d max_items=%d\n", __FILE__,__LINE__,num_items, max_items);
       grow_table();
    }
    return true;
@@ -318,8 +318,8 @@ void *htable::lookup_fix(unsigned char *key, unsigned char *New, unsigned char *
 //                    count ++;
                     if(bestnum!=0)
                     {
-//                        printf("pre=%d\n",bestnum);
-//                        printf("next=%d\n",j);
+//                        // printf("pre=%d\n",bestnum);
+//                        // printf("next=%d\n",j);
                     }
                     bestnum=j;
                     best =hp;
@@ -331,7 +331,7 @@ void *htable::lookup_fix(unsigned char *key, unsigned char *New, unsigned char *
         }
 
     }
-//    printf("search time;%d\n",time);
+//    // printf("search time;%d\n",time);
     if(bestnum == 0) return NULL;
     else  return ((char *)best)-loffset;
 
@@ -409,15 +409,3 @@ void htable::destroy()
    //Dmsg0(100, "Done destroy.\n");
 }
 
-void htable::SetOffset(int offset)
-{
-   loffset = offset;
-   return ;
-}
-
-void htable::ResetTable()
-{
-   memset(table, 0, buckets * sizeof(hlink *));
-   num_items = 0;
-   return ;
-}

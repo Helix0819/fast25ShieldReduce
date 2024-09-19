@@ -118,7 +118,6 @@ bool LeveldbDatabase::InsertBuffer(const std::string& key, const char* buffer, s
  */
 bool LeveldbDatabase::InsertBothBuffer(const char* key, size_t keySize, const char* buffer,
     size_t bufferSize) {
-    // tool::Logging("levelDB", "insert key: %s\n", key);
     leveldb::Status insertStatus = this->levelDBObj_->Put(leveldb::WriteOptions(),
         leveldb::Slice(key, keySize), leveldb::Slice(buffer, bufferSize));
     return insertStatus.ok();

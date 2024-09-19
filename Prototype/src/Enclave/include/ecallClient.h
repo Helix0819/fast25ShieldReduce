@@ -14,11 +14,6 @@
 
 #include "ecallEnc.h"
 #include "commonEnclave.h"
-// #include ""
-#include "md5.h"
-#include "util.h"
-#include "xxhash.h"
-
 
 using namespace std;
 
@@ -108,63 +103,6 @@ class EnclaveClient {
         unordered_map<string, uint32_t> _localIndex;
         InContainer _inContainer;
         InContainer _deltainContainer;
-
-        // for edelta
-        DeltaRecord *BaseLink_;
-        unordered_map<uint64_t, DeltaRecord *> psHTable_;
-        htable* psHTable2_;
-        int* cutEdelta_;
-        uint8_t* encBaseBuffer_;
-        uint8_t* decBaseBuffer_;
-        uint8_t* plainBaseBuffer_;
-        uint8_t* ivBuffer_;
-        uint8_t* deltaBuffer_;
-
-        // for offline
-        DeltaRecord *BaseLinkOffline_;
-        unordered_map<uint64_t, DeltaRecord *> psHTableOffline_;
-        htable* psHTable2Offline_;
-        int* cutEdeltaOffline_;
-        RecipeEntry_t* oldRecipe_;
-        RecipeEntry_t* newRecipe_;
-        RecipeEntry_t* deltaRecipe_;
-        uint8_t* oldBasechunkSf_;
-        uint8_t* newBasechunkSf_;
-        uint8_t* offline_encOldChunkBuffer_;
-        uint8_t* offline_encNewChunkBuffer_;
-        uint8_t* offline_plainOldUniqueBuffer_;
-
-        // uint8_t* offline_coldNewContainer_;
-        // uint8_t* plainNewDeltaChunkBuffer2_;
-
-        // for offline merge container and update cold container
-        uint8_t* offline_mergeNewContainer_;
-        RecipeEntry_t* offline_mergeRecipeEnc_;
-        RecipeEntry_t* offline_mergeRecipeDec_;
-
-        // for offline process delta compression
-        uint8_t* offline_oldChunkDecrypt_;
-        uint8_t* offline_newChunkDecrypt_;
-        uint8_t* offline_oldChunkDecompression_;
-        uint8_t* offline_newChunkDecompression_;
-        uint8_t* offline_newDeltaChunkEnc_;
-        uint8_t* offline_oldDeltaChunkDec_;
-        uint8_t* offline_oldDeltaChunkEnc_;
-        
-        // for offline delta chunk
-        uint8_t* offline_deltaSFBuffer_;
-        uint8_t* offline_deltaIVBuffer_;
-        uint8_t* offline_oldIVBuffer_;
-        uint8_t* offline_newIVBuffer_;
-        uint8_t* offline_deltaFPBuffer_;
-        uint8_t* offline_outRecipeBuffer_;
-
-        // for GetNew_deltachunk()
-        uint8_t* offline_tmpUniqueBuffer_;
-        uint8_t* offline_plainNewDeltaChunkBuffer_;
-        
-
-        
 
         /**
          * @brief Construct a new Enclave Client object

@@ -20,14 +20,10 @@ static const char ENCLAVE_PATH[] = "../lib/storeEnclave.signed.so";
 #define DATAWRITER_BREAKDOWN 0
 #define RESTORE_WRITER_BREAKDOWN 0
 
-// for GC
-#define IS_MERGE_CONTAINER 1
-#define QUICK_CHECK 0
-
 // For SGX_Breakdown
 #define SGX_BREAKDOWN 0
 #define IMPACT_OF_TOP_K 0
-#define MULTI_CLIENT 0
+#define MULTI_CLIENT 1
 #define EDR_BREAKDOWN 0
 
 #define INDEX_INFO 1
@@ -38,7 +34,7 @@ static const char ENCLAVE_PATH[] = "../lib/storeEnclave.signed.so";
 #define OFFLINE_THRESHOLD 0.03
 #define GREEDY_THRESHOLD 0.0
 #define CONTAINER_SEPARATE 1
-#define SF_SINGLE_THREAD 0
+#define SF_SINGLE_THREAD 1
 #define MeGA_THRESOLD 3
 #define OFFLINE 1
 
@@ -165,18 +161,6 @@ enum ENCLAVE_TRUST_STATUS
 {
     ENCLAVE_TRUSTED = 0,
     ENCLAVE_UNTRUSTED = 1
-};
-
-enum JOB_DONE_FLAG
-{
-    NOT_DONE = 0,
-    IS_DONE = 1
-};
-
-enum CONTAINER_TYPE
-{
-    BASE_CONTAINER = 0,
-    DELTA_CONTAINER = 1
 };
 
 enum DELTA_STATUS

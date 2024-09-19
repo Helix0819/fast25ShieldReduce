@@ -416,7 +416,6 @@ void EcallDEBE::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf,
         upOutSGX->outQuery->queryNum = outQueryNum;
         Ocall_QueryOutIndex(upOutSGX->outClient);
         _Inline_Ocall++;
-        _Inline_FPOcall++;
     }
 
     // process the unique chunks and update the metadata

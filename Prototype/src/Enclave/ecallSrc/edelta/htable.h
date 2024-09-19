@@ -85,7 +85,5 @@ public:
    void *next();                      /* get next item in table */
    void destroy();
    void stats();                      /* print stats about the table */
-   void SetOffset(int offset);
-   void ResetTable();
    u_int32_t size();                   /* return size of table */
 };

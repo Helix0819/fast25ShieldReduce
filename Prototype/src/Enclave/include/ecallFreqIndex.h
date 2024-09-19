@@ -24,9 +24,7 @@
 #include "ecallEntryHeap.h"
 #include "ecallinContainercache.h"
 #include <sgx_thread.h>
-#include "md5.h"
-#include "util.h"
-#include "xxhash.h"
+#include "edelta.h"
 
 extern "C"
 {
@@ -65,17 +63,6 @@ class EcallFreqIndex : public EnclaveBase {
         // uint8_t *temp_chunkbuffer;
         // uint8_t *tmp_buffer;
         // uint8_t *basechunkbuffer;
-
-        // for edelta
-        DeltaRecord *BaseLink_;
-        unordered_map<uint64_t, DeltaRecord *>* psHTable_;
-        htable* psHTable2_;
-        int* cutEdelta_;
-        uint8_t* encBaseBuffer_;
-        uint8_t* decBaseBuffer_;
-        uint8_t* plainBaseBuffer_;
-        uint8_t* ivBuffer_;
-        uint8_t* deltaBuffer_;
 
 
         /**
@@ -117,28 +104,6 @@ class EcallFreqIndex : public EnclaveBase {
          * @return false fail
          */
         bool LoadDedupIndex();
-
-        /* flag=0 for 'D', 1 for 'S' */
-        void set_flag(void *record, uint32_t flag);
-
-        /* return 0 if flag=0, >0(not 1) if flag=1 */
-        u_int32_t get_flag(void *record);
-
-        void set_length(void *record, uint32_t length);
-
-        uint32_t get_length(void *record);
-
-        int Chunking_v3(unsigned char *data, int len, int num_of_chunks, DeltaRecord *subChunkLink);
-
-        int EDeltaEncode(uint8_t *newBuf, uint32_t newSize, uint8_t *baseBuf,
-                 uint32_t baseSize, uint8_t *deltaBuf, uint32_t *deltaSize);
-
-        int EDeltaDecode(uint8_t *deltaBuf, uint32_t deltaSize, uint8_t *baseBuf,
-                 uint32_t baseSize, uint8_t *outBuf, uint32_t *outSize);
-
-        uint8_t *ed3_encode(uint8_t *in, size_t in_size, uint8_t *ref, size_t ref_size, size_t *res_size, uint8_t *tmpbuffer);
-
-        uint8_t *ed3_decode(uint8_t *in, size_t in_size, uint8_t *ref, size_t ref_size, size_t *res_size);
     public:
 
 
@@ -230,7 +195,7 @@ class EcallFreqIndex : public EnclaveBase {
          * @param res_size delta chunk size
          * @return delta chunk buffer
          */
-        uint8_t* xd3_encode(const uint8_t *in, size_t in_size, const uint8_t *ref, size_t ref_size, size_t *res_size, uint8_t *tmpbuffer);
+        uint8_t* xd3_encode(uint8_t *in, size_t in_size, uint8_t *ref, size_t ref_size, size_t *res_size, uint8_t *tmpbuffer);
 
         /**
          * @brief do delta decompression
@@ -242,7 +207,7 @@ class EcallFreqIndex : public EnclaveBase {
          * @param res_size target chunk size
          * @return target chunk buffer
          */
-        uint8_t* xd3_decode(const uint8_t *in, size_t in_size, const uint8_t *ref, size_t ref_size, size_t *res_size);
+        // uint8_t* xd3_decode(const uint8_t *in, size_t in_size, const uint8_t *ref, size_t ref_size, size_t *res_size);
 
         /**
          * @brief do delta compression

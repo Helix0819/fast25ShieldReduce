@@ -1,5 +1,5 @@
 #!/bin/bash
-bash ./cleanup.sh
+./cleanup.sh
 if [ ! -d "bin" ]; then
     echo "build the executable output directory"
     mkdir -p bin

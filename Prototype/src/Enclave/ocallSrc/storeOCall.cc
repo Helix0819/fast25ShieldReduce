@@ -57,6 +57,8 @@ void OutEnclave::Init(DataWriter* dataWriterObj,
 
     // init the lck
     pthread_rwlock_init(&outIdxLck_, NULL);
+
+    pthread_rwlock_init(&outLogLck_, NULL);
     return ;
 }
 
@@ -68,6 +70,7 @@ void OutEnclave::Destroy() {
     // destroy the lck
     free(tmpOcallcontainer);
     pthread_rwlock_destroy(&outIdxLck_);
+    pthread_rwlock_destroy(&outLogLck_);
     return ;
 }
 
@@ -110,8 +113,8 @@ void Ocall_WriteContainer(void* outClient) {
     outClientPtr->_inputMQ->Push(outClientPtr->_curContainer);
 #endif
     // reset current container
-    tool::CreateUUID(outClientPtr->_curContainer.containerID,
-        CONTAINER_ID_LENGTH,con_times);
+    tool::CreateUUID1(outClientPtr->_curContainer.containerID,
+        CONTAINER_ID_LENGTH);
     con_times++;
     outClientPtr->_curContainer.currentSize = 0;
     return ;
@@ -132,8 +135,8 @@ void Ocall_WriteDeltaContainer(void* outClient) {
     outClientPtr->_inputMQ->Push(outClientPtr->_curDeltaContainer);
 #endif
     // reset current container
-    tool::CreateUUID(outClientPtr->_curDeltaContainer.containerID,
-        CONTAINER_ID_LENGTH,con_times);
+    tool::CreateUUID1(outClientPtr->_curDeltaContainer.containerID,
+        CONTAINER_ID_LENGTH);
     con_times++;
     outClientPtr->_curDeltaContainer.currentSize = 0;
     return ;
@@ -159,7 +162,6 @@ void Ocall_Printf(const char* str) {
  */
 void Ocall_UpdateIndexStoreBuffer(bool* ret, const char* key, size_t keySize, 
     const uint8_t* buffer, size_t bufferSize) {
-    // tool::Logging(myName_.c_str(), "inmerge, insert key: %s.\n", key);
     *ret = indexStoreObj_->InsertBothBuffer(key, keySize, (char*)buffer, bufferSize);
     return ;
 }
@@ -566,7 +568,7 @@ void Ocall_getRefContainer(void* outClient) {
     OutQueryEntry_t* entry = outQuery->outQueryBase;
     string tmpbaseChunkAddress;
 
-
+    // uint8_t* tmpOcallcontainer = outClientPtr->outRefContainerBuffer_;
     tmpbaseChunkAddress.resize(sizeof(RecipeEntry_t), 0);
     for(size_t i = 0;i < outQuery->currNum;i++){
         entry++;
@@ -670,25 +672,19 @@ void Ocall_getRefContainer(void* outClient) {
     return ;
 }
 
-void Ocall_UpdateDeltaIndex(void* outClient, size_t chunkNum)
+void Ocall_UpdateDeltaIndex(void* outClient)
 {
     ClientVar* outClientPtr = (ClientVar*)outClient;
     uint8_t* tmpBuffer = outClientPtr->_process_buffer;
 #if (MULTI_CLIENT == 1) 
     pthread_rwlock_wrlock(&outLogLck_);
 #endif 
-    // tool::Logging("DEBUG", "chunkNum: %lu\n", chunkNum);
-    uint32_t offset = 0;
+
     string baseChunkHash;
+    baseChunkHash.assign((char*)tmpBuffer, CHUNK_HASH_SIZE);
     string deltaChunkHash;
-    for (int i = 0; i < chunkNum; i++) {
-        baseChunkHash.assign((char*)tmpBuffer + offset, CHUNK_HASH_SIZE);
-        offset += CHUNK_HASH_SIZE;
-        deltaChunkHash.assign((char*)tmpBuffer + offset, CHUNK_HASH_SIZE);
-        offset += CHUNK_HASH_SIZE;
-        // tool::Logging("DEBUG", "base chunk hash: %s, delta chunk hash: %s\n", baseChunkHash.c_str(), deltaChunkHash.c_str());
-        indexStoreObj_->InsertDeltaIndex(baseChunkHash, deltaChunkHash);
-    }
+    deltaChunkHash.assign((char*)(tmpBuffer + CHUNK_HASH_SIZE), CHUNK_HASH_SIZE);
+    indexStoreObj_->InsertDeltaIndex(baseChunkHash, deltaChunkHash);
 
 #if (MULTI_CLIENT == 1)
     pthread_rwlock_unlock(&outLogLck_);
@@ -715,7 +711,7 @@ void Ocall_QueryDeltaIndex(void* outClient)
     }else
     {
             outClientPtr->_deltaInfo.QueryNum = 0;
-            //tool::Logging("DEBUG", "not find in delta index\n");
+        //tool::Logging("DEBUG", "not find in delta index\n");
     }
     return ;
 
@@ -724,7 +720,7 @@ void Ocall_QueryDeltaIndex(void* outClient)
 int bugSkip = 0;
 int local_delta = 0;
 
-void Ocall_LocalInsert(void* outClient, size_t chunkNum){
+void Ocall_LocalInsert(void* outClient){
     string oldbasechunkhash;
     string newbasechunkhash;
     ClientVar* outClientPtr = (ClientVar*)outClient;
@@ -732,27 +728,19 @@ void Ocall_LocalInsert(void* outClient, size_t chunkNum){
 #if (MULTI_CLIENT == 1) 
     pthread_rwlock_wrlock(&outLogLck_);
 #endif  
-    uint32_t offset = 0;
-    for (int i = 0; i < chunkNum; i++)
+    oldbasechunkhash.assign((char*)buffer,CHUNK_HASH_SIZE);
+    buffer += CHUNK_HASH_SIZE;
+    newbasechunkhash.assign((char*)buffer,CHUNK_HASH_SIZE);
+    auto it = indexStoreObj_->_local_tmp_map.find(oldbasechunkhash);
+    if(it != indexStoreObj_->_local_tmp_map.end())
     {
-        oldbasechunkhash.assign((char*)buffer + offset, CHUNK_HASH_SIZE);
-        offset += CHUNK_HASH_SIZE;
-        newbasechunkhash.assign((char*)buffer + offset, CHUNK_HASH_SIZE);
-        offset += CHUNK_HASH_SIZE;
-        auto it = indexStoreObj_->_local_tmp_map.find(oldbasechunkhash);
-        if(it != indexStoreObj_->_local_tmp_map.end())
-        {
-
-            //tool::Logging("debug","bugSkip is %d\n", bugSkip);
-            indexStoreObj_->skipMap[oldbasechunkhash].push_back(it->second);
-            bugSkip++;
-        }
-        indexStoreObj_->_local_tmp_map[oldbasechunkhash] = newbasechunkhash;
-        local_delta++;
-        // tool::Logging("DEBUG", "old chunk hash: %s, new chunk hash: %s\n", oldbasechunkhash.c_str(), newbasechunkhash.c_str());
+        
+        //tool::Logging("debug","bugSkip is %d\n", bugSkip);
+        indexStoreObj_->skipMap[oldbasechunkhash].push_back(it->second);
+        bugSkip++;
     }
-    
-
+    indexStoreObj_->_local_tmp_map[oldbasechunkhash] = newbasechunkhash;
+    local_delta++;
 
 #if (MULTI_CLIENT == 1)
     pthread_rwlock_unlock(&outLogLck_);
@@ -891,6 +879,9 @@ void Ocall_OneContainer(void* outClient){
     ClientVar* outClientPtr = (ClientVar*)outClient;
     OutQuery_t* outQuery = &outClientPtr->_outQuery;
     OutQueryEntry_t* entry = outQuery->outQueryBase;
+
+    // uint8_t* tmpOcallcontainer = outClientPtr->outRefContainerBuffer_;
+
     string tmpContainerIDStr;
     tmpContainerIDStr.resize(CONTAINER_ID_LENGTH,0);
     tmpContainerIDStr.assign((char*)entry->chunkAddr.containerName,CONTAINER_ID_LENGTH);
@@ -1151,6 +1142,9 @@ void Ocall_OneColdContainer(void* outClient, bool* deltaFlag) {
     ClientVar* outClientPtr = (ClientVar*)outClient;
     OutQuery_t* outQuery = &outClientPtr->_outQuery;
     OutQueryEntry_t* entry = outQuery->outQueryBase;
+
+    // uint8_t* tmpOcallcontainer = outClientPtr->outRefContainerBuffer_;
+
     string tmpContainerIDStr;
     tmpContainerIDStr.resize(CONTAINER_ID_LENGTH,0);
     tmpContainerIDStr.assign((char*)entry->chunkAddr.containerName,CONTAINER_ID_LENGTH);
@@ -1190,197 +1184,4 @@ void Ocall_OneColdContainer(void* outClient, bool* deltaFlag) {
 
 void Ocall_CleanLocalIndex(){
     indexStoreObj_->_local_map.clear();
-}
-
-void Ocall_GetMergeContainer(void* outClient)
-{
-    ClientVar* outClientPtr = (ClientVar*)outClient;
-    // outClientPtr->_mergeContainerBuffer = (uint8_t*)malloc(MAX_CONTAINER_SIZE);
-    // namespace fs = std::filesystem;
-    std::vector<std::filesystem::path> baseContainerList_;
-    std::string basePath = "Base-Containers/";
-    // std::string deltaPath = "Delta-Containers/";
- 
-    // get container name and sort
-    try 
-    {
-        for (const auto& entry : std::filesystem::directory_iterator(basePath)) {
-            if (std::filesystem::is_regular_file(entry.status())) {
-                baseContainerList_.push_back(entry.path());
-            }
-        }
-
-        // for (const auto& entry : fs::directory_iterator(deltaPath)) {
-        //     if (fs::is_regular_file(entry.status())) {
-        //         outClientPtr->deltaContainerList_.push_back(entry.path());
-        //     }
-        // }
- 
-        std::sort(baseContainerList_.begin(), baseContainerList_.end());
-        // std::sort(outClientPtr->deltaContainerList_.begin(), outClientPtr->deltaContainerList_.end());
-    } 
-    catch (const std::filesystem::filesystem_error& e) 
-    {
-        std::cerr << e.what() << std::endl;
-    }
-
-    uint32_t containerSize1;
-    uint32_t containerSize2;
-    // for base container
-    for (int i = 1; i < baseContainerList_.size(); i++)
-    {
-        std::ifstream container1(baseContainerList_[i-1], std::ifstream::ate | std::ifstream::binary);
-        std::ifstream container2(baseContainerList_[i], std::ifstream::ate | std::ifstream::binary);
-
-        if (container1 && container2) {
-            containerSize1 = container1.tellg();
-            container1.close();
-            containerSize2 = container2.tellg();
-            container2.close();
-            // tool::Logging(myName_.c_str(), "size1: %u, size2: %u.\n", containerSize1, containerSize2); 
-        }
-        else {
-            tool::Logging(myName_.c_str(), "in merge container, can not open container.\n"); 
-        }
-
-        if (containerSize1 + containerSize2 < MAX_CONTAINER_SIZE - 1)
-        {
-            // tool::Logging(myName_.c_str(), "add base pair.\n"); 
-            string containerName1 = baseContainerList_[i-1];
-            string containerName2 = baseContainerList_[i];
-            pair<string, string> pairTmp(containerName1, containerName2);
-            outClientPtr->baseMergePair.push_back(pairTmp);
-            i++;
-        }
-    }
-
-    // containerSize1 = 0;
-    // containerSize2 = 0;
-    // // for delta container
-    // for (int i = 1; i < outClientPtr->deltaContainerList_.size(); i++)
-    // {
-    //     std::ifstream container1(outClientPtr->deltaContainerList_[i-1], std::ifstream::ate | std::ifstream::binary);
-    //     std::ifstream container2(outClientPtr->deltaContainerList_[i], std::ifstream::ate | std::ifstream::binary);
-
-    //     if (container1 && container2) {
-    //         containerSize1 = container1.tellg();
-    //         container1.close();
-    //         containerSize2 = container2.tellg();
-    //         container2.close();
-    //         tool::Logging(myName_.c_str(), "size1: %u, size2: %u.\n", containerSize1, containerSize2); 
-    //     }
-    //     else {
-    //         tool::Logging(myName_.c_str(), "in merge container, can not open container.\n"); 
-    //     }
-
-    //     if (containerSize1 + containerSize2 < MAX_CONTAINER_SIZE)
-    //     {
-    //         tool::Logging(myName_.c_str(), "add delta pair.\n"); 
-    //         string containerName1 = outClientPtr->deltaContainerList_[i-1];
-    //         string containerName2 = outClientPtr->deltaContainerList_[i];
-    //         pair<string, string> pairTmp(containerName1, containerName2);
-    //         outClientPtr->deltaMergePair.push_back(pairTmp);
-    //         i++;
-    //     }
-    // }
-
-    if (outClientPtr->baseMergePair.size() != 0)
-    {
-        tool::Logging(myName_.c_str(), "have small containers, wait for merge.\n"); 
-        outClientPtr->_upOutSGX.jobDoneFlag = NOT_DONE;
-    }
-    else
-    {
-        tool::Logging(myName_.c_str(), "no container need to be merged.\n"); 
-        outClientPtr->_upOutSGX.jobDoneFlag = IS_DONE;
-    }
-    baseContainerList_.clear();
-    return ;
-}
-
-void Ocall_CleanMerge(void* outClient)
-{
-    ClientVar* outClientPtr = (ClientVar*)outClient;
-    
-    outClientPtr->_upOutSGX.jobDoneFlag = IS_DONE;
-    outClientPtr->baseMergePair.clear();
-    outClientPtr->_upOutSGX.outQuery->outQueryBase->chunkAddr.offset = 0;
-    return ;
-}
-
-// merge second container to first container
-void Ocall_GetMergePair(void* outClient, uint8_t* containerID, uint32_t* size)
-{
-    ClientVar* outClientPtr = (ClientVar*)outClient;
-
-    tool::Logging(myName_.c_str(), "merge remain pairs: %u.\n", outClientPtr->baseMergePair.size()); 
-
-    if (outClientPtr->baseMergePair.size() != 0)
-    {
-        // get name
-        string containerName1 = outClientPtr->baseMergePair[0].first.substr(16, CONTAINER_ID_LENGTH);
-        string containerName2 = outClientPtr->baseMergePair[0].second.substr(16, CONTAINER_ID_LENGTH);
-        tool::Logging(myName_.c_str(), "1st container name: %s.\n", containerName1.c_str()); 
-        tool::Logging(myName_.c_str(), "2nd container name: %s.\n", containerName2.c_str()); 
-        OutQueryEntry_t* entry = outClientPtr->_upOutSGX.outQuery->outQueryBase;
-        
-        memcpy(containerID, containerName1.c_str(), CONTAINER_ID_LENGTH);
-    
-        // get 1st container size
-        std::ifstream container1(outClientPtr->baseMergePair[0].first.c_str(), std::ifstream::ate | std::ifstream::binary);
-        uint32_t containerSize1 = 0;
-        if (container1) {
-            containerSize1 = container1.tellg();
-            container1.close();
-        }
-        *size = containerSize1;
-
-        // get 2nd container
-        ifstream containerIn;
-        // tool::Logging(myName_.c_str(), "2nd container path: %s.\n", outClientPtr->baseMergePair[0].second.c_str()); 
-        containerIn.open(outClientPtr->baseMergePair[0].second.c_str(), ifstream::in | ifstream::binary);
-        containerIn.seekg(0, ios_base::end);
-        int readSize = containerIn.tellg();
-        containerIn.seekg(0, ios_base::beg);
-        int containerSize = 0;
-        containerSize = readSize;
-        containerIn.read((char*)outClientPtr->_mergeContianer.body, containerSize);
-        // tool::Logging(myName_.c_str(), "out container: %d %d.\n", (int)outClientPtr->_mergeContainerBuffer[0],
-        //     (int)outClientPtr->_mergeContainerBuffer[1]); 
-        // tool::Logging(myName_.c_str(), "read %u bytes from 2nd containrt.\n", containerSize); 
-        if (containerIn.gcount() != containerSize) {
-            tool::Logging(myName_.c_str(), "container size: %u, read size: %u.\n", containerIn.gcount(), containerSize); 
-            fprintf(stderr, "not match\n");
-            exit(EXIT_FAILURE);
-        }
-        containerIn.close();
-        entry->containersize = containerSize;
-    }
-    else
-    {
-        outClientPtr->_upOutSGX.jobDoneFlag = IS_DONE;
-    }
-    return ;
-}
-
-void Ocall_MergeContent(void* outClient, uint8_t* containerBody, size_t currentSize)
-{
-    ClientVar* outClientPtr = (ClientVar*)outClient;
-    string fileName = outClientPtr->baseMergePair[0].first;
-    
-    std::ofstream file(fileName.c_str(), std::ios::app);
-    file.write((char*)containerBody, currentSize);
-    // tool::Logging(myName_.c_str(), "write size: %u, write success.\n", currentSize);
-    file.close();
-
-    if (unlink(outClientPtr->baseMergePair[0].second.c_str()) == 0) {
-        tool::Logging(myName_.c_str(), "delete: %s success.\n", outClientPtr->baseMergePair[0].second.c_str());
-    } 
-    else {
-        tool::Logging(myName_.c_str(), "delete: %s faled.\n", outClientPtr->baseMergePair[0].second.c_str());
-    }
-
-    outClientPtr->baseMergePair.erase(outClientPtr->baseMergePair.begin());
-
-    return ;
 }

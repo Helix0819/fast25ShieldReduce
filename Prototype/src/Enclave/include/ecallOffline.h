@@ -7,10 +7,6 @@
 
 #include <iostream>
 #include "ecallLz4.h"
-
-#include "md5.h"
-#include "util.h"
-#include "xxhash.h"
 using namespace std;
 
 extern "C"
@@ -36,45 +32,8 @@ class OFFLineBackward
         uint8_t *tmpOldContainer;
         uint8_t *tmpNewContainer;
         uint8_t *tmpDeltaContainer;
-        // uint8_t *tmpColdContainer;
+        uint8_t *tmpColdContainer;
         uint64_t GreeyOfflineSize = 0;
-        // uint8_t *coldNewContainer_;
-
-
-        uint8_t* offline_plainOldUniqueBuffer_;
-
-        // for GetNew_deltachunk()
-        uint8_t* offline_tmpUniqueBuffer_;
-        uint8_t* offline_plainNewDeltaChunkBuffer_;
-
-        DeltaRecord *BaseLink_;
-        unordered_map<uint64_t, DeltaRecord *>* psHTable_;
-        htable* psHTable2_;
-        int* cutEdelta_;
-
-        // for merge container and update cold container
-        uint8_t* offline_mergeNewContainer_;
-        RecipeEntry_t* offline_mergeRecipeEnc_;
-        RecipeEntry_t* offline_mergeRecipeDec_;
-
-        // for offline process delta compression
-        uint8_t* offline_oldChunkDecrypt_;
-        uint8_t* offline_newChunkDecrypt_;
-        uint8_t* offline_oldChunkDecompression_;
-        uint8_t* offline_newChunkDecompression_;
-        uint8_t* offline_newDeltaChunkEnc_;
-        uint8_t* offline_oldDeltaChunkDec_;
-        uint8_t* offline_oldDeltaChunkEnc_;
-        uint8_t* encOldChunkBuffer_;
-        uint8_t* encNewChunkBuffer_;
-
-        // for offline delta chunk
-        uint8_t* offline_deltaSFBuffer_;
-        uint8_t* offline_deltaIVBuffer_;
-        uint8_t* offline_oldIVBuffer_;
-        uint8_t* offline_newIVBuffer_;
-        uint8_t* offline_deltaFPBuffer_;
-        uint8_t* offline_outRecipeBuffer_;
 
     public:
         unordered_map<string, string> local_basemap;
@@ -203,8 +162,6 @@ class OFFLineBackward
          */
         uint8_t *GetChunk_content(uint8_t *tmpcontainer, RecipeEntry_t *tmprecipe, bool cold_flag, pair<uint32_t, uint32_t> &tmppair);
 
-        uint8_t* GetChunk_content_buffer(uint8_t*tmpcontainer, RecipeEntry_t* tmprecipe, bool cold_flag, pair<uint32_t,uint32_t> &tmppair, uint8_t* res);
-
         /**
          * @brief Get the content of new deltachunk
          * @param old_deltachunk
@@ -261,7 +218,7 @@ class OFFLineBackward
          * @param tmpcontainer
          * @param tmprecipe
          */
-        uint8_t *GetChunk_IV(uint8_t *tmpcontainer, RecipeEntry_t *tmprecipe, uint8_t* resBuffer);
+        uint8_t *GetChunk_IV(uint8_t *tmpcontainer, RecipeEntry_t *tmprecipe);
 
         /**
          * @brief do delta compression
@@ -304,35 +261,5 @@ class OFFLineBackward
                             size_t bufferSize);
 
         void CleanLocal_Index();
-
-        void MergeContainer(UpOutSGX_t* upOutSGX, EcallCrypto* cryptoObj_, EVP_CIPHER_CTX *cipherCtx);
-
-                /* flag=0 for 'D', 1 for 'S' */
-        void set_flag(void *record, uint32_t flag);
-
-        /* return 0 if flag=0, >0(not 1) if flag=1 */
-        u_int32_t get_flag(void *record);
-
-        void set_length(void *record, uint32_t length);
-
-        uint32_t get_length(void *record);
-
-        int Chunking_v3(unsigned char *data, int len, int num_of_chunks, DeltaRecord *subChunkLink);
-
-        int EDeltaEncode(uint8_t *newBuf, uint32_t newSize, uint8_t *baseBuf,
-                 uint32_t baseSize, uint8_t *deltaBuf, uint32_t *deltaSize);
-
-        int EDeltaDecode(uint8_t *deltaBuf, uint32_t deltaSize, uint8_t *baseBuf,
-                 uint32_t baseSize, uint8_t *outBuf, uint32_t *outSize);
-
-        uint8_t *ed3_encode(uint8_t *in, size_t in_size, uint8_t *ref, size_t ref_size, size_t *res_size);
-
-        uint8_t *ed3_decode(uint8_t *in, size_t in_size, uint8_t *ref, size_t ref_size, size_t *res_size);
-
-        uint8_t *ed3_encode_buffer(uint8_t *in, size_t in_size, uint8_t *ref, 
-            size_t ref_size, uint8_t *res, size_t *res_size);
-        
-        uint8_t *ed3_decode_buffer(uint8_t *in, size_t in_size, uint8_t *ref, 
-            size_t ref_size, uint8_t *res, size_t *res_size);
 };
 #endif

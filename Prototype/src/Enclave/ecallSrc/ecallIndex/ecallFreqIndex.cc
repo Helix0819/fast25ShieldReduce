@@ -41,6 +41,8 @@ int delta_find = 0;
  * 
  */
 EcallFreqIndex::EcallFreqIndex() {
+
+
     topThreshold_ = Enclave::topKParam_;
     insideDedupIndex_ = new EcallEntryHeap();
     insideDedupIndex_->SetHeapSize(topThreshold_);
@@ -78,8 +80,6 @@ EcallFreqIndex::~EcallFreqIndex() {
     // free(temp_chunkbuffer);
     // free(tmp_buffer);
     // free(basechunkbuffer);
-    // free(BaseLink_);
-    // free(cutEdelta_);
 
     Enclave::Logging(myName_.c_str(), "========EcallFreqIndex Info========\n");
     Enclave::Logging(myName_.c_str(), "logical chunk num: %lu\n", _logicalChunkNum);
@@ -549,7 +549,6 @@ void EcallFreqIndex::AddChunkToHeap(uint32_t chunkFreq, RecipeEntry_t* chunkAddr
  */
 void EcallFreqIndex::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf, 
     UpOutSGX_t* upOutSGX) {
-    // Enclave::Logging("DEBUG","ProcessOneBatch\n");
     // the in-enclave info
     EnclaveClient* sgxClient = (EnclaveClient*)upOutSGX->sgxClient;
     EVP_CIPHER_CTX* cipherCtx = sgxClient->_cipherCtx;
@@ -559,17 +558,6 @@ void EcallFreqIndex::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf,
     Recipe_t* inRecipe = &sgxClient->_inRecipe;
     InQueryEntry_t* inQueryBase = sgxClient->_inQueryBase;
     OutQueryEntry_t* outQueryBase = upOutSGX->outQuery->outQueryBase;
-
-    // for edelta;
-    BaseLink_ = sgxClient->BaseLink_;
-    cutEdelta_ = sgxClient->cutEdelta_;
-    psHTable_ = &(sgxClient->psHTable_);
-    psHTable2_ = sgxClient->psHTable2_;
-    encBaseBuffer_ = sgxClient->encBaseBuffer_;
-    decBaseBuffer_ = sgxClient->decBaseBuffer_;
-    plainBaseBuffer_ = sgxClient->plainBaseBuffer_;
-    ivBuffer_ = sgxClient->ivBuffer_;
-    deltaBuffer_ = sgxClient->deltaBuffer_;
 
     // tmp var
     OutQueryEntry_t* outQueryEntry = outQueryBase;
@@ -666,10 +654,6 @@ void EcallFreqIndex::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf,
 
                 uint8_t tmphash[CHUNK_HASH_SIZE];
                 memcpy(&tmphash[0],&outQueryEntry->chunkHash[0],CHUNK_HASH_SIZE);
-                // string tmpHashStr1;
-                // tmpHashStr1.assign((char*)outQueryEntry->chunkHash, CHUNK_HASH_SIZE);
-                // Enclave::Logging("DEBUG","enc fp: %d %d\n", (int)tmpHashStr1.c_str()[0], (int)tmpHashStr1.c_str()[1]);
-
 
                 // update the in-enclave query buffer
                 inQueryEntry->dedupFlag = UNIQUE;
@@ -692,10 +676,6 @@ void EcallFreqIndex::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf,
                         Enclave::indexQueryKey_, outQueryEntry->chunkHash);
 
                     uint8_t tmphash[CHUNK_HASH_SIZE];
-                    // string tmpHashStr1;
-                    // tmpHashStr1.assign((char*)outQueryEntry->chunkHash, CHUNK_HASH_SIZE);
-                    // Enclave::Logging("DEBUG","enc fp: %d %d\n", (int)tmpHashStr1.c_str()[0], (int)tmpHashStr1.c_str()[1]);
-
                     memcpy(&tmphash[0],&outQueryEntry->chunkHash[0],CHUNK_HASH_SIZE);
                     
                     // update the dedup list
@@ -812,9 +792,6 @@ void EcallFreqIndex::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf,
     tmpChunkAddr.resize(sizeof(RecipeEntry_t), 0);
     InQueryEntry_t* tmpQueryEntry;
     uint32_t tmpChunkSize;
-    // for update delta index
-    uint32_t processBufferOffset = 0;
-    uint32_t processNum = 0;
     for (size_t i = 0; i < chunkNum; i++) {
         tmpChunkSize = inQueryEntry->chunkSize;
         currentOffset += sizeof(uint32_t);
@@ -870,29 +847,22 @@ void EcallFreqIndex::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf,
                         if(inQueryEntry->chunkAddr.deltaFlag == DELTA){
                             outQueryEntry->deltaFlag = DELTA;
                             this->ProcessSheUniqueChunk(&inQueryEntry->chunkAddr,deltachunk,deltachunk_size, upOutSGX, (uint8_t *)&inQueryEntry->superfeature, (uint8_t *)&outQueryEntry->chunkHash);
-                            // free(deltachunk);
+                            free(deltachunk);
                             string baseChunkHash;
                             string deltaChunkHash;
                             baseChunkHash.assign((char*)&outQueryEntry->chunkAddr.basechunkHash[0], CHUNK_HASH_SIZE);
                             deltaChunkHash.assign((char*)&outQueryEntry->chunkHash[0], CHUNK_HASH_SIZE);
-                            // Enclave::Logging("DEBUG", "inline origin: base chunk hash: %d, delta chunk hash: %d\n", (int)baseChunkHash.c_str()[0], (int)deltaChunkHash.c_str()[0]);
-                            memcpy(upOutSGX->process_buffer + processBufferOffset, baseChunkHash.c_str(), CHUNK_HASH_SIZE);
-                            processBufferOffset += CHUNK_HASH_SIZE;
-                            memcpy(upOutSGX->process_buffer + processBufferOffset, deltaChunkHash.c_str(), CHUNK_HASH_SIZE);
-                            processBufferOffset += CHUNK_HASH_SIZE;
-                            processNum++;
-
-                            // memset(upOutSGX->process_buffer, 0, 1000 * CHUNK_HASH_SIZE);
-                            // memcpy(upOutSGX->process_buffer, (uint8_t*)&baseChunkHash[0], CHUNK_HASH_SIZE);
-                            // memcpy(upOutSGX->process_buffer + CHUNK_HASH_SIZE, (uint8_t*)&deltaChunkHash[0], CHUNK_HASH_SIZE);
-                            // Ocall_UpdateDeltaIndex(upOutSGX->outClient, 1);
-                            // _Inline_Ocall++;
-                            // _Inline_DeltaOcall++;
+                            memset(upOutSGX->process_buffer, 0, 1000 * CHUNK_HASH_SIZE);
+                            memcpy(upOutSGX->process_buffer, (uint8_t*)&baseChunkHash[0], CHUNK_HASH_SIZE);
+                            memcpy(upOutSGX->process_buffer + CHUNK_HASH_SIZE, (uint8_t*)&deltaChunkHash[0], CHUNK_HASH_SIZE);
+                            Ocall_UpdateDeltaIndex(upOutSGX->outClient);
+                            _Inline_Ocall++;
+                            _Inline_DeltaOcall++;
                             _deltaChunkNum++;
-                            _inlineDeltaChunkNum++;
                             _deltaDataSize += inQueryEntry->chunkAddr.length;
                             _DeltaSaveSize += (tmpChunkSize - inQueryEntry->chunkAddr.length);
                             _Online_DeltaSaveSize += (tmpChunkSize - inQueryEntry->chunkAddr.length);
+
 
                         }else if (inQueryEntry->chunkAddr.deltaFlag == NO_DELTA){
                             outQueryEntry->deltaFlag = NO_DELTA;
@@ -941,6 +911,7 @@ void EcallFreqIndex::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf,
         }
         this->UpdateFileRecipe(tmpChunkAddr, inRecipe,upOutSGX,&inQueryEntry->chunkHash[0]);
 
+
         inQueryEntry++;
         currentOffset += tmpChunkSize;
 
@@ -949,35 +920,17 @@ void EcallFreqIndex::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf,
         _logicalChunkNum++;
     }
 
-    // memset(upOutSGX->process_buffer, 0, chunkNum * CHUNK_HASH_SIZE);
-    if (!Local_Flag)
-    {
-        if (processNum > 0)
+
+    if(Local_Flag){
+        for (int i = 0;i < batch_basemap.size();i++)
         {
-            Ocall_UpdateDeltaIndex(upOutSGX->outClient, processNum);
-            _Inline_Ocall++;
-            _Inline_DeltaOcall++;
+            uint8_t* buffer = upOutSGX->test_buffer;
+            memcpy(buffer,(uint8_t*)&(batch_basemap[i].first[0]),CHUNK_HASH_SIZE);
+            memcpy(buffer+CHUNK_HASH_SIZE,(uint8_t*)&(batch_basemap[i].second[0]),CHUNK_HASH_SIZE);
+            Ocall_LocalInsert(upOutSGX->outClient);
         }
-    }
-    else
-    {
-        uint32_t bufferOffset = 0;
-        uint8_t* buffer = upOutSGX->test_buffer;
-        for (int i = 0; i < batch_basemap.size(); i++)
-        {
-            memcpy(buffer + bufferOffset, (uint8_t*)&(batch_basemap[i].first[0]), CHUNK_HASH_SIZE);
-            bufferOffset += CHUNK_HASH_SIZE;
-            memcpy(buffer + bufferOffset, (uint8_t*)&(batch_basemap[i].second[0]), CHUNK_HASH_SIZE);
-            bufferOffset += CHUNK_HASH_SIZE;
-            // Enclave::Logging("DEBUG", "inline: base chunk hash: %s, delta chunk hash: %s\n", batch_basemap[i].first.c_str(), batch_basemap[i].second.c_str());
-        }
-        size_t itemNum = batch_basemap.size();
-        if (itemNum > 0)
-        {
-            Ocall_LocalInsert(upOutSGX->outClient, itemNum);
-            _Inline_Ocall++;
-            _Inline_LocalOcall++;
-        }
+        _Inline_Ocall++;
+        _Inline_LocalOcall++;
     }
 
 
@@ -1030,7 +983,6 @@ void EcallFreqIndex::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf,
 void EcallFreqIndex::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf, 
     UpOutSGX_t* upOutSGX) {
     // the in-enclave info
-    // Enclave::Logging("DEBUG","ProcessOneBatch, breakdown version\n");
     EnclaveClient* sgxClient = (EnclaveClient*)upOutSGX->sgxClient;
     EVP_CIPHER_CTX* cipherCtx = sgxClient->_cipherCtx;
     EVP_MD_CTX* mdCtx = sgxClient->_mdCtx;
@@ -1039,21 +991,6 @@ void EcallFreqIndex::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf,
     Recipe_t* inRecipe = &sgxClient->_inRecipe;
     InQueryEntry_t* inQueryBase = sgxClient->_inQueryBase;
     OutQueryEntry_t* outQueryBase = upOutSGX->outQuery->outQueryBase;
-
-    // for edelta;
-    BaseLink_ = sgxClient->BaseLink_;
-    cutEdelta_ = sgxClient->cutEdelta_;
-    psHTable_ = &(sgxClient->psHTable_);
-    psHTable2_ = sgxClient->psHTable2_;
-    encBaseBuffer_ = sgxClient->encBaseBuffer_;
-    decBaseBuffer_ = sgxClient->decBaseBuffer_;
-    plainBaseBuffer_ = sgxClient->plainBaseBuffer_;
-    ivBuffer_ = sgxClient->ivBuffer_;
-    deltaBuffer_ = sgxClient->deltaBuffer_;
-
-    // for update delta index
-    uint32_t processBufferOffset = 0;
-    uint32_t processNum = 0;
 
     // tmp var
     OutQueryEntry_t* outQueryEntry = outQueryBase;
@@ -1291,7 +1228,7 @@ void EcallFreqIndex::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf,
     //OFFLINE
     int batch_out_times = 0;
     bool Local_Flag = 0;
-    vector<pair<string,string>> batch_basemap;
+    unordered_map<string,string> batch_basemap;
 
 #if (EDR_BREAKDOWN == 1)
             Ocall_GetCurrentTime(&_startTime);
@@ -1398,21 +1335,30 @@ void EcallFreqIndex::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf,
                         if(inQueryEntry->chunkAddr.deltaFlag == DELTA){
                             outQueryEntry->deltaFlag = DELTA;
                             this->ProcessSheUniqueChunk(&inQueryEntry->chunkAddr,deltachunk,deltachunk_size, upOutSGX, (uint8_t *)&inQueryEntry->superfeature, (uint8_t *)&outQueryEntry->chunkHash);
-                            // free(deltachunk);
+                            free(deltachunk);
                             string baseChunkHash;
                             string deltaChunkHash;
                             baseChunkHash.assign((char*)&outQueryEntry->chunkAddr.basechunkHash[0], CHUNK_HASH_SIZE);
                             deltaChunkHash.assign((char*)&outQueryEntry->chunkHash[0], CHUNK_HASH_SIZE);
-                            // memset(upOutSGX->process_buffer, 0, 1000 * CHUNK_HASH_SIZE);
-                            memcpy(upOutSGX->process_buffer + processBufferOffset, (uint8_t*)&baseChunkHash[0], CHUNK_HASH_SIZE);
-                            processBufferOffset += CHUNK_HASH_SIZE;
-                            memcpy(upOutSGX->process_buffer + processBufferOffset, (uint8_t*)&deltaChunkHash[0], CHUNK_HASH_SIZE);
-                            processBufferOffset += CHUNK_HASH_SIZE;
-                            processNum++;
+                            memset(upOutSGX->process_buffer, 0, 1000 * CHUNK_HASH_SIZE);
+                            memcpy(upOutSGX->process_buffer, (uint8_t*)&baseChunkHash[0], CHUNK_HASH_SIZE);
+                            memcpy(upOutSGX->process_buffer + CHUNK_HASH_SIZE, (uint8_t*)&deltaChunkHash[0], CHUNK_HASH_SIZE);
                             _deltaChunkNum++;
                             _deltaDataSize += inQueryEntry->chunkAddr.length;
                             _DeltaSaveSize += (tmpChunkSize - inQueryEntry->chunkAddr.length);
                             _Online_DeltaSaveSize += (tmpChunkSize - inQueryEntry->chunkAddr.length);
+
+
+#if (EDR_BREAKDOWN == 1)
+                Ocall_GetCurrentTime(&_startTime);
+#endif
+                            Ocall_UpdateDeltaIndex(upOutSGX->outClient);
+
+#if (EDR_BREAKDOWN == 1)
+                Ocall_GetCurrentTime(&_endTime);
+                _localcheckerTime += (_endTime - _startTime);
+                _localcheckerCount++;
+#endif
 
 
                         }else if (inQueryEntry->chunkAddr.deltaFlag == NO_DELTA){
@@ -1526,36 +1472,19 @@ void EcallFreqIndex::ProcessOneBatch(SendMsgBuffer_t* recvChunkBuf,
 #endif
 
     if(Local_Flag){
-        // for (unordered_map<string, string>::iterator it = batch_basemap.begin(); it != batch_basemap.end(); it++)
-        // {
-
-        //     uint8_t* buffer = upOutSGX->test_buffer;
-        //     if(buffer == nullptr){
-        //         Enclave::Logging("DE BUG","NULLLLLLLLLLLLLLL\n");
-        //     }
-        //     memcpy(buffer,(uint8_t*)&(it->first[0]),CHUNK_HASH_SIZE);
-        //     memcpy(buffer+CHUNK_HASH_SIZE,(uint8_t*)&(it->second[0]),CHUNK_HASH_SIZE);
-        //     Ocall_LocalInsert(upOutSGX->outClient);
-        //     //offlinebackOBj_->Insert_local(it->first, it->second);
-        // }
-        uint32_t bufferOffset = 0;
-        uint8_t* buffer = upOutSGX->test_buffer;
-        for (int i = 0; i < batch_basemap.size(); i++)
+        for (unordered_map<string, string>::iterator it = batch_basemap.begin(); it != batch_basemap.end(); it++)
         {
-            memcpy(buffer + bufferOffset, (uint8_t*)&(batch_basemap[i].first[0]), CHUNK_HASH_SIZE);
-            bufferOffset += CHUNK_HASH_SIZE;
-            memcpy(buffer + bufferOffset, (uint8_t*)&(batch_basemap[i].second[0]), CHUNK_HASH_SIZE);
-            bufferOffset += CHUNK_HASH_SIZE;
-            // Enclave::Logging("DEBUG", "inline: base chunk hash: %s, delta chunk hash: %s\n", batch_basemap[i].first.c_str(), batch_basemap[i].second.c_str());
+
+            uint8_t* buffer = upOutSGX->test_buffer;
+            if(buffer == nullptr){
+                Enclave::Logging("DE BUG","NULLLLLLLLLLLLLLL\n");
+            }
+            memcpy(buffer,(uint8_t*)&(it->first[0]),CHUNK_HASH_SIZE);
+            memcpy(buffer+CHUNK_HASH_SIZE,(uint8_t*)&(it->second[0]),CHUNK_HASH_SIZE);
+            Ocall_LocalInsert(upOutSGX->outClient);
+            //offlinebackOBj_->Insert_local(it->first, it->second);
         }
-        size_t itemNum = batch_basemap.size();
-        Ocall_LocalInsert(upOutSGX->outClient, itemNum);
     }
-    else
-    {
-        Ocall_UpdateDeltaIndex(upOutSGX->outClient, processNum);
-    }
-    
 
 #if (EDR_BREAKDOWN == 1)
                 Ocall_GetCurrentTime(&_endTime);
@@ -1622,7 +1551,6 @@ void EcallFreqIndex::EntryLoad(InQueryEntry_t *_inQueryEntry, OutQueryEntry_t *_
 
     if (_outQueryEntry->deltaFlag == OUT_DELTA)
     {
-    _inline_have_similar_chunk_num ++;
     // copy the hash of the base chunk address from the output container to the input container
     memcpy(&_inQueryEntry->chunkAddr.basechunkHash, &_outQueryEntry->chunkAddr.basechunkHash, CHUNK_HASH_SIZE);
     // decrypt the base chunk address from the output container to the input container
@@ -1642,7 +1570,7 @@ void EcallFreqIndex::EntryLoad(InQueryEntry_t *_inQueryEntry, OutQueryEntry_t *_
 
 
 bool EcallFreqIndex::LocalChecker(InQueryEntry_t *_inQueryBase, OutQueryEntry_t *_outQueryBase, UpOutSGX_t *_upOutSGX,uint32_t _chunkNum){
-    InQueryEntry_t *inQueryEntry = _inQueryBase;
+   InQueryEntry_t *inQueryEntry = _inQueryBase;
     OutQueryEntry_t *outQueryEntry = _outQueryBase;
     set<string> Batch_ContainerIDset;
     for(size_t i = 0; i < _chunkNum; i++){
@@ -1660,7 +1588,7 @@ bool EcallFreqIndex::LocalChecker(InQueryEntry_t *_inQueryBase, OutQueryEntry_t 
         inQueryEntry++;
     }
 
-    
+
     //check if the batch is full
     int thresold;
     if(Forward_Flag == true){
@@ -1670,9 +1598,7 @@ bool EcallFreqIndex::LocalChecker(InQueryEntry_t *_inQueryBase, OutQueryEntry_t 
         //if the batch is backward, we need to check the number of unique containers
         thresold = _chunkNum * OFFLINE_THRESHOLD;
     }
-
-    _inline_need_load_container_num += Batch_ContainerIDset.size();
-    _inline_batch_num++;
+    
 
     //if the batch is full, we need to return true
     if(Batch_ContainerIDset.size() >  thresold){
@@ -1699,7 +1625,7 @@ void EcallFreqIndex::OfflinedeltaTure(InQueryEntry_t *_inQueryEntry, OutQueryEnt
 
     // if the delta flag is out delta, then we need to check if the chunk is already in the cache
 
-    if(Local_Flag && _outQueryEntry->deltaFlag == OUT_DELTA){
+    if(Local_Flag&&_outQueryEntry->deltaFlag == OUT_DELTA){
         string tmpNewchunkStr;
         tmpNewchunkStr.resize(CHUNK_HASH_SIZE,0);
         tmpNewchunkStr.assign((char*)_outQueryEntry->chunkHash,CHUNK_HASH_SIZE);
@@ -1739,6 +1665,9 @@ void EcallFreqIndex::OfflinedeltaTure(InQueryEntry_t *_inQueryEntry, OutQueryEnt
     }
 
     // if the delta flag is in delta, then we need to check if the chunk is already in the cache
+#if(MULTI_CLIENT == 1)
+    Enclave::inContainerLck_.lock();
+#endif
 
     // if the delta flag is in delta, then we need to check if the chunk is already in the cache
     if (_outQueryEntry->deltaFlag == OUT_DELTA)
@@ -1751,11 +1680,7 @@ void EcallFreqIndex::OfflinedeltaTure(InQueryEntry_t *_inQueryEntry, OutQueryEnt
   
     }
 
-    
     // add the container to in-container cache
-
-
-
     if (_outQueryEntry->deltaFlag == DELTA)
     {
  
@@ -1765,15 +1690,9 @@ void EcallFreqIndex::OfflinedeltaTure(InQueryEntry_t *_inQueryEntry, OutQueryEnt
         {
             if (!InContainercache_->ExistsInCache(tmpContainerIDStr))
             {
-#if(MULTI_CLIENT == 1)
-                Enclave::inContainerLck_.lock();
-#endif
-
                 InContainercache_->InsertToCache_Offline(tmpContainerIDStr, (char *)_outQueryEntry->containerbuffer,MAX_CONTAINER_SIZE);
                 basecontainer_set.insert(tmpContainerIDStr);
-#if(MULTI_CLIENT == 1)
-                Enclave::inContainerLck_.unlock();
-#endif
+
                 memcpy(&_inQueryEntry->chunkAddr.basechunkHash, &_outQueryEntry->chunkAddr.basechunkHash, CHUNK_HASH_SIZE);
 
                 _batch_out_times++;
@@ -1781,6 +1700,10 @@ void EcallFreqIndex::OfflinedeltaTure(InQueryEntry_t *_inQueryEntry, OutQueryEnt
             }
         }
     }
+#if(MULTI_CLIENT == 1)
+    Enclave::inContainerLck_.unlock();
+#endif
+    return; 
 
 }
 
@@ -1788,65 +1711,69 @@ uint8_t* EcallFreqIndex::ProcessDeltachunk(InQueryEntry_t *inQueryEntry, OutQuer
 {
     uint8_t *reccchunk;
     uint8_t* deltachunk;
-    size_t reccchunk_size = 1;
+    size_t reccchunk_size;
     int refchunksize;
-    // uint8_t temp_decompressChunk[MAX_CHUNK_SIZE];
+    uint8_t temp_decompressChunk[MAX_CHUNK_SIZE];
     EnclaveClient *sgxClient = (EnclaveClient *)upOutSGX->sgxClient;
     EVP_CIPHER_CTX *cipherCtx = sgxClient->_cipherCtx;
     uint8_t* tmpbuffer;
     string tmpContainerIDStr_1;
     tmpContainerIDStr_1.assign((char *)inQueryEntry->basechunkAddr.containerName, CONTAINER_ID_LENGTH);
 
+    uint8_t *temp_iv = (uint8_t *)malloc(CRYPTO_BLOCK_SIZE);
+    uint8_t *temp_chunkbuffer = (uint8_t *)malloc(MAX_CHUNK_SIZE);
+    uint8_t *tmp_buffer = (uint8_t *)malloc((8 * 1024 + 8 * 1024) * 2);
+    uint8_t *basechunkbuffer = (uint8_t *)malloc(MAX_CHUNK_SIZE);
+
     bool result = InContainercache_->ExistsInCache(tmpContainerIDStr_1);
     if(result == 0){
         Enclave::Logging(myName_.c_str(), "IScontainer:%d\n",result);
+        outQueryEntry->deltaFlag = NO_DELTA;
+        return nullptr;
     }
     tmpbuffer = outQueryEntry->containerbuffer; 
-    // Enclave::Logging(myName_.c_str(), "before enc base buffer\n");
-    memcpy(encBaseBuffer_, 
-        tmpbuffer + inQueryEntry->basechunkAddr.offset + sizeof(RecipeEntry_t) + 4 * CHUNK_HASH_SIZE, 
-        inQueryEntry->basechunkAddr.length);
-    memcpy(ivBuffer_, 
-        tmpbuffer + inQueryEntry->basechunkAddr.offset + inQueryEntry->basechunkAddr.length + sizeof(RecipeEntry_t) + 4 * CHUNK_HASH_SIZE, 
-        CRYPTO_BLOCK_SIZE);
+    memcpy(temp_chunkbuffer, tmpbuffer + inQueryEntry->basechunkAddr.offset + sizeof(RecipeEntry_t) + 4 * CHUNK_HASH_SIZE, inQueryEntry->basechunkAddr.length);
+
+
+    memcpy(temp_iv, tmpbuffer + inQueryEntry->basechunkAddr.offset + inQueryEntry->basechunkAddr.length + sizeof(RecipeEntry_t) + 4 * CHUNK_HASH_SIZE, CRYPTO_BLOCK_SIZE);
+
 
     // Decrypt basechunk with iv-key
-    cryptoObj_->DecryptionWithKeyIV(cipherCtx, encBaseBuffer_, 
-        outQueryEntry->basechunkAddr.length, Enclave::enclaveKey_, decBaseBuffer_, ivBuffer_);
+
+    cryptoObj_->DecryptionWithKeyIV(cipherCtx, temp_chunkbuffer, outQueryEntry->basechunkAddr.length, Enclave::enclaveKey_, temp_decompressChunk, temp_iv);
  
     // Decode basechunk by lz4
-    refchunksize = LZ4_decompress_safe((char *)decBaseBuffer_, 
-        (char *)plainBaseBuffer_, outQueryEntry->basechunkAddr.length, MAX_CHUNK_SIZE);
+
+    refchunksize = LZ4_decompress_safe((char *)temp_decompressChunk, (char *)basechunkbuffer, outQueryEntry->basechunkAddr.length, MAX_CHUNK_SIZE);
 
     // do delta compression
     if (refchunksize > 0)
     {
-        deltachunk = ed3_encode(recvBuffer + currentOffset, inQueryEntry->chunkSize, 
-            plainBaseBuffer_, refchunksize, deltachunk_size, deltaBuffer_);
-        // reccchunk = ed3_decode(deltachunk, *deltachunk_size, basechunkbuffer, refchunksize, &reccchunk_size);
+        deltachunk = xd3_encode(recvBuffer + currentOffset, inQueryEntry->chunkSize, basechunkbuffer, refchunksize, deltachunk_size,tmp_buffer);
+        
+        // reccchunk = xd3_decode(deltachunk, *deltachunk_size, basechunkbuffer, refchunksize, &reccchunk_size);
         if (*deltachunk_size >= inQueryEntry->chunkSize)
         {
             outQueryEntry->deltaFlag = NO_DELTA;
-            // free(deltachunk);
+            free(deltachunk);
         }
         // free(reccchunk);
     }
     else
     {
-        deltachunk = ed3_encode(recvBuffer + currentOffset, inQueryEntry->chunkSize, 
-            decBaseBuffer_, outQueryEntry->basechunkAddr.length, deltachunk_size, deltaBuffer_);
-        // reccchunk = ed3_decode(deltachunk, *deltachunk_size, basechunkbuffer, refchunksize, &reccchunk_size);
+        deltachunk = xd3_encode(recvBuffer + currentOffset, inQueryEntry->chunkSize, temp_decompressChunk, outQueryEntry->basechunkAddr.length, deltachunk_size,tmp_buffer);
         if (*deltachunk_size >= inQueryEntry->chunkSize)
         {
             outQueryEntry->deltaFlag = NO_DELTA;
-            // free(deltachunk);
+            free(deltachunk);
         }
-        // free(reccchunk);
     }
-    // deltachunk = (uint8_t*)malloc(MAX_CHUNK_SIZE);
-    // *deltachunk_size = MAX_CHUNK_SIZE;
 
     inQueryEntry->chunkAddr.deltaFlag = outQueryEntry->deltaFlag;
+    free(temp_iv);
+    free(temp_chunkbuffer);
+    free(tmp_buffer);
+    free(basechunkbuffer);
     return deltachunk;
 }
 
@@ -1861,11 +1788,15 @@ uint8_t* EcallFreqIndex::ProcessDeltachunk(InQueryEntry_t *inQueryEntry, OutQuer
  *
  * @return the pointer of the delta chunk
  */
-uint8_t *EcallFreqIndex::xd3_encode(const uint8_t *in, size_t in_size, const uint8_t *ref, size_t ref_size, size_t *res_size, uint8_t *tmpbuffer) // 更改函数
+uint8_t *EcallFreqIndex::xd3_encode(uint8_t *in, size_t in_size, uint8_t *ref, size_t ref_size, size_t *res_size, uint8_t *tmpbuffer) // 更改函数
 {
     size_t sz;
-    xd3_encode_memory(in, in_size, ref, ref_size, tmpbuffer, &sz, 8 * 1024 * 4, 0);
+    uint32_t sz32;
+    uint32_t insize32 = in_size;
+    uint32_t refsize32 = ref_size;
+    int resedelta = EDeltaEncode(in, in_size, ref, ref_size, tmpbuffer, &sz32);
     uint8_t *res;
+    sz = sz32;
     res = (uint8_t *)malloc(sz);
     *res_size = sz;
     memcpy(res, tmpbuffer, sz);
@@ -1884,20 +1815,20 @@ uint8_t *EcallFreqIndex::xd3_encode(const uint8_t *in, size_t in_size, const uin
  *
  * @return the pointer of the restore chunk
  */
-uint8_t *EcallFreqIndex::xd3_decode(const uint8_t *in, size_t in_size, const uint8_t *ref, size_t ref_size, size_t *res_size) // 更改函数
-{
-    const auto max_buffer_size = (in_size + ref_size) * 2;
-    uint8_t *buffer;
-    buffer = (uint8_t *)malloc(max_buffer_size);
-    size_t sz;
-    xd3_decode_memory(in, in_size, ref, ref_size, buffer, &sz, max_buffer_size, 0);
-    uint8_t *res;
-    res = (uint8_t *)malloc(sz);
-    *res_size = sz;
-    memcpy(res, buffer, sz);
-    free(buffer);
-    return res;
-}
+// uint8_t *EcallFreqIndex::xd3_decode(const uint8_t *in, size_t in_size, const uint8_t *ref, size_t ref_size, size_t *res_size) // 更改函数
+// {
+//     const auto max_buffer_size = (in_size + ref_size) * 2;
+//     uint8_t *buffer;
+//     buffer = (uint8_t *)malloc(max_buffer_size);
+//     size_t sz;
+//     xd3_decode_memory(in, in_size, ref, ref_size, buffer, &sz, max_buffer_size, 0);
+//     uint8_t *res;
+//     res = (uint8_t *)malloc(sz);
+//     *res_size = sz;
+//     memcpy(res, buffer, sz);
+//     free(buffer);
+//     return res;
+// }
 
 
 
@@ -1926,6 +1857,8 @@ void EcallFreqIndex::ProcessOffline(SendMsgBuffer_t *recvChunkBuf, UpOutSGX_t *u
     return ;
 }
 
+
+
 void EcallFreqIndex::OutEntrySFGet(InQueryEntry_t *_inQueryBase, OutQueryEntry_t *_outQueryBase,uint32_t _chunkNum){
    InQueryEntry_t *inQueryEntry = _inQueryBase;
     OutQueryEntry_t *outQueryEntry = _outQueryBase;
@@ -1945,968 +1878,6 @@ void EcallFreqIndex::OutEntrySFGet(InQueryEntry_t *_inQueryBase, OutQueryEntry_t
         inQueryEntry++;
     }
     return;
+
 }
 
-uint8_t *EcallFreqIndex::ed3_encode(uint8_t *in, size_t in_size, uint8_t *ref, 
-    size_t ref_size, size_t *res_size, uint8_t *tmpbuffer) // 更改函数
-{
-    uint32_t sz;
-    // Enclave::Logging(myName_.c_str(), "before edelta encode\n");
-    int resInt = this->EDeltaEncode(in, in_size, ref, ref_size, tmpbuffer, &sz);
-    // Enclave::Logging(myName_.c_str(), "before edelta encode\n");
-    uint8_t *res;
-    *res_size = sz;
-    return tmpbuffer;
-}
-
-uint8_t *EcallFreqIndex::ed3_decode(uint8_t *in, size_t in_size, uint8_t *ref, size_t ref_size, size_t *res_size) // 更改函数
-{
-    // Enclave::Logging(myName_.c_str(), "max_buffer_size: %lu", max_buffer_size);
-    uint8_t *buffer;
-    buffer = (uint8_t *)malloc(MAX_CHUNK_SIZE * 2);
-    uint32_t res32;
-    size_t sz;
-    // xd3_decode_memory(in, in_size, ref, ref_size, buffer, &sz, max_buffer_size, 0);
-    int resInt = this->EDeltaDecode(in, in_size, ref, ref_size, buffer, &res32);
-    res32 = 1024;
-    sz = res32;
-    uint8_t *res;
-    res = (uint8_t *)malloc(sz);
-    *res_size = sz;
-    memcpy(res, buffer, sz);
-    free(buffer);
-    return res;
-}
-
-
-/* flag=0 for 'D', 1 for 'S' */
-void EcallFreqIndex::set_flag(void *record, uint32_t flag) {
-  uint32_t *flag_length = (uint32_t *)record;
-  if (flag == 0) {
-    (*flag_length) &= ~(uint32_t)0 >> 1;
-  } else {
-    (*flag_length) |= (uint32_t)1 << 31;
-  }
-}
-
-/* return 0 if flag=0, >0(not 1) if flag=1 */
-u_int32_t EcallFreqIndex::get_flag(void *record) {
-  u_int32_t *flag_length = (u_int32_t *)record;
-  return (*flag_length) & (u_int32_t)1 << 31;
-}
-
-void EcallFreqIndex::set_length(void *record, uint32_t length) {
-  uint32_t *flag_length = (uint32_t *)record;
-  uint32_t musk = (*flag_length) & (uint32_t)1 << 31;
-  *flag_length = length | musk;
-}
-
-uint32_t EcallFreqIndex::get_length(void *record) {
-  uint32_t *flag_length = (uint32_t *)record;
-  return (*flag_length) & ~(uint32_t)0 >> 1;
-}
-
-int EcallFreqIndex::Chunking_v3(unsigned char *data, int len, int num_of_chunks,
-                DeltaRecord *subChunkLink) 
-{
-  int i = 0, *cut;
-  /* cut is the chunking points in the stream */
-  cut = cutEdelta_;
-  int numBytes =
-      rolling_gear_v3(data, len, num_of_chunks, cut); //分割给定快的总字节数
-
-  while (i < num_of_chunks) {
-    int chunkLen = cut[i + 1] - cut[i];
-    subChunkLink[i].nLength = chunkLen;
-    subChunkLink[i].nOffset = cut[i]; /**/
-    subChunkLink[i].DupFlag = 0;
-    subChunkLink[i].nHash = weakHash(data + cut[i], chunkLen);
-    //	SpookyHash::Hash64(data+ cut[i], chunkLen, 0x1af1);
-    i++;
-  }
-  return numBytes;
-}
-
-// int EcallFreqIndex::EDeltaEncode(uint8_t *newBuf, uint32_t newSize, uint8_t *baseBuf,
-//                  uint32_t baseSize, uint8_t *deltaBuf, uint32_t *deltaSize) {
-//   /* detect the head and tail of one chunk */
-//   uint32_t beg = 0; 
-//   uint32_t end = 0;
-//   uint32_t begSize = 0;
-//   uint32_t endSize = 0;
-//   float matchsum = 0.;
-//   float match = 0.;
-// //   Enclave::Logging(myName_.c_str(), "1\n");
-//   while (begSize + 7 < baseSize && begSize + 7 < newSize) {
-//     if (*(uint64_t *)(baseBuf + begSize) == *(uint64_t *)(newBuf + begSize)) {
-//       begSize += 8;
-//     } else
-//       break;
-//   }
-//   while (begSize < baseSize && begSize < newSize) {
-//     if (baseBuf[begSize] == newBuf[begSize]) {
-//       begSize++;
-//     } else
-//       break;
-//   }
-
-//   if (begSize > 16)
-//     beg = 1;
-//   else
-//     begSize = 0;
-
-//   while (endSize + 7 < baseSize && endSize + 7 < newSize) {
-//     if (*(uint64_t *)(baseBuf + baseSize - endSize - 8) ==
-//         *(uint64_t *)(newBuf + newSize - endSize - 8)) {
-//       endSize += 8;
-//     } else
-//       break;
-//   }
-//   while (endSize < baseSize && endSize < newSize) {
-//     if (baseBuf[baseSize - endSize - 1] == newBuf[newSize - endSize - 1]) {
-//       endSize++;
-//     } else
-//       break;
-//   }
-
-//   if (begSize + endSize > newSize)
-//     endSize = newSize - begSize;
-
-//   if (endSize > 16)
-//     end = 1;
-//   else
-//     endSize = 0;
-// //   /* end of detect */
-// //   Enclave::Logging(myName_.c_str(), "2\n");
-
-//   if (begSize + endSize >= baseSize) {
-//     DeltaUnit1 record1;
-//     DeltaUnit2 record2;
-//     uint32_t deltaLen = 0;
-//     if (beg) {
-//       set_flag(&record1, 0);
-//       record1.nOffset = 0;
-//       set_length(&record1, begSize);
-//       memcpy(deltaBuf + deltaLen, &record1, sizeof(DeltaUnit1));
-//       deltaLen += sizeof(DeltaUnit1);
-//     }
-//     if (newSize - begSize - endSize > 0) {
-//       set_flag(&record2, 1);
-//       set_length(&record2, newSize - begSize - endSize);
-//       memcpy(deltaBuf + deltaLen, &record2, sizeof(DeltaUnit2));
-//       deltaLen += sizeof(DeltaUnit2);
-//       memcpy(deltaBuf + deltaLen, newBuf + begSize, get_length(&record2));
-//       deltaLen += get_length(&record2);
-//     }
-//     if (end) {
-//       set_flag(&record1, 0);
-//       record1.nOffset = baseSize - endSize;
-//       set_length(&record1, endSize);
-//       memcpy(deltaBuf + deltaLen, &record1, sizeof(DeltaUnit1));
-//       deltaLen += sizeof(DeltaUnit1);
-//     }
-
-//     *deltaSize = deltaLen;
-//     // Enclave::Logging(myName_.c_str(), "2.9\n");
-//     return deltaLen;
-//   }
-// //   Enclave::Logging(myName_.c_str(), "3\n");
-
-
-//   uint32_t deltaLen = 0;
-//   uint32_t cursor_base = begSize;
-//   uint32_t cursor_input = begSize;
-//   uint32_t cursor_input1 = 0;
-//   uint32_t cursor_input2 = 0;
-//   uint32_t input_last_chunk_beg = begSize;
-//   uint32_t inputPos = begSize;
-//   uint32_t length;
-//   uint64_t hash;
-//   DeltaRecord *psDupSubCnk = NULL;
-//   DeltaUnit1 record1{0, 0};
-//   DeltaUnit2 record2{0};
-//   set_flag(&record1, 0);
-//   set_flag(&record2, 1);
-//   int flag = 0; /* to represent the last record in the deltaBuf,
-//        1 for DeltaUnit1, 2 for DeltaUnit2 */
-
-//   auto res1  = psHTable_->find(0);
-//   auto res2  = psHTable_->find(0);
-//   auto res3  = psHTable_->find(0);
-
-//   int numBase = 0;  /* the total number of chunks that the base has chunked */
-//   int numBytes = 0; /* the number of bytes that the base chunks once */
-//   DeltaRecord *BaseLink = BaseLink_;
-// //   Enclave::Logging("edelta", "malloc size: %u\n", sizeof(DeltaRecord) * ((baseSize - begSize - endSize) / STRMIN + 50));
-// //   *deltaSize = 1024;
-
-//   int offset = (char *)&BaseLink[0].psNextSubCnk - (char *)&BaseLink[0];
-// //   htable *psHTable = psHTable_;
-// //   psHTable->init(offset, 8, baseSize/16);
-// #if POST_DEDUP
-//   psHTable->init(offset, 8, (baseSize - begSize - endSize) * 2 / (STRAVG + 1));
-// #else
-// //   psHTable->init(offset, 8, 8 * 1024);
-// #endif
-
-//   // int chunk_length;
-//   int flag_chunk = 1; // to tell if basefile has been chunked to the end
-//   int numBytes_old;
-//   int numBytes_accu = 0; // accumulated numBytes in one turn of chunking the
-//                          // base
-//   int probe_match; // to tell which chunk for probing matches the some base
-//   int flag_handle_probe; // to tell whether the probe chunks need to be handled
-
-//   if (beg) {
-//     record1.nOffset = 0;
-//     set_length(&record1, begSize);
-//     memcpy(deltaBuf + deltaLen, &record1, sizeof(DeltaUnit1));
-//     deltaLen += sizeof(DeltaUnit1);
-//     flag = 1;
-//   }
-
-// #define BASE_BEGIN 5
-// #define BASE_EXPAND 3
-// #define BASE_STEP 3
-// #define INPUT_TRY 5
-
-// /* if deltaLen > newSize * RECOMPRESS_THRESHOLD in the first round,we'll
-//  * go back to greedy.
-//  */
-// #define GO_BACK_TO_GREEDY 0
-
-// #define RECOMPRESS_THRESHOLD 0.2
-
-//   DeltaRecord InputLink[INPUT_TRY];
-//   // int test=0;
-
-//   while (inputPos < newSize - endSize) {
-//     if (flag_chunk) {
-//       //		if( cursor_input - input_last_chunk_beg >= numBytes_accu
-//       //* 0.8 ){
-//       if ((cursor_input / (float)newSize) + 0.5 >=
-//           (cursor_base / (float)baseSize)) {
-//         numBytes_old = numBytes_accu;
-//         numBytes_accu = 0;
-
-//         /* chunk a few chunks in the input first */
-//         // Chunking_v3(newBuf+cursor_input, newSize-endSize-cursor_input,
-//         // INPUT_TRY, InputLink);
-//         flag_handle_probe = 1;
-//         probe_match = INPUT_TRY;
-//         int chunk_number = BASE_BEGIN;
-//         for (int i = 0; i < BASE_STEP; i++) {
-//           numBytes = Chunking_v3(
-//               baseBuf + cursor_base, baseSize - endSize - cursor_base,
-//               chunk_number,
-//               BaseLink + numBase); //一个分块base的循环找到 match的就可以跳出
-
-//           for (int j = 0; j < chunk_number; j++) {
-//             if (BaseLink[numBase + j].nLength == 0) {
-//               flag_chunk = 0;
-//               break;
-//             }
-//             BaseLink[numBase + j].nOffset += cursor_base;
-//             psHTable_->emplace(BaseLink[numBase + j].nHash, (DeltaRecord *)&BaseLink[numBase + j]);
-//             // psHTable->insert((unsigned char *)&BaseLink[numBase + j].nHash,
-//             //                  &BaseLink[numBase + j]);
-//           }
-
-//           cursor_base += numBytes;
-//           numBase += chunk_number;
-//           numBytes_accu += numBytes;
-
-//           chunk_number *= BASE_EXPAND;
-//           if (i == 0) {
-//             cursor_input1 = cursor_input;
-//             for (int j = 0; j < INPUT_TRY; j++) {
-//               cursor_input2 = cursor_input1;
-//               cursor_input1 = chunk_gear(newBuf + cursor_input2,
-//                                          newSize - cursor_input2 - endSize) +
-//                               cursor_input2;
-//               InputLink[j].nLength = cursor_input1 - cursor_input2;
-//               InputLink[j].nHash =
-//                   weakHash(newBuf + cursor_input2, InputLink[j].nLength);
-//             //   InputLink[j].nHash = 9;
-//                 //   weakHash(newBuf + cursor_input2, InputLink[j].nLength);
-//             //   if ((psDupSubCnk = (DeltaRecord *)psHTable->lookup(
-//             //            (unsigned char *)&(InputLink[j].nHash)))) {
-//             //     probe_match = j;
-//             //     goto lets_break;
-//             //   }
-//               res1 = psHTable_->find(InputLink[j].nHash);
-//               if (res1 != psHTable_->end())
-//               {
-//                 psDupSubCnk = res1->second;
-//                 probe_match = j;
-//                 goto lets_break;
-//               }
-//             }
-//           } else {
-//             for (int j = 0; j < INPUT_TRY; j++) {
-//               res2 = psHTable_->find(InputLink[j].nHash);
-//               if (res2 != psHTable_->end())
-//               {
-//                 psDupSubCnk = res2->second;
-//                 probe_match = j;
-//                 goto lets_break;
-//               }
-//             }
-//           }
-
-//           if (flag_chunk == 0)
-//           lets_break:
-//             break;
-//         }
-
-//         input_last_chunk_beg =
-//             (cursor_input > (input_last_chunk_beg + numBytes_old)
-//                  ? cursor_input
-//                  : (input_last_chunk_beg + numBytes_old));
-//         // test++;
-//       }
-//     }
-
-//     // to handle the chunks in input file for probing
-//     if (flag_handle_probe) {
-//       for (int i = 0; i < INPUT_TRY; i++) {
-//         matchsum++;
-//         length = InputLink[i].nLength;
-//         cursor_input = length + inputPos;
-
-//         if (i == probe_match) 
-//         {
-//           flag_handle_probe = 0;
-//           goto match;
-//         } 
-//         else 
-//         {
-//           if (flag == 2) { //把不match的块弄过去
-//             /* continuous unique chunks only add unique bytes into the deltaBuf,
-//              * but not change the last DeltaUnit2, so the DeltaUnit2 should be
-//              * overwritten when flag=1 or at the end of the loop.
-//              */
-//             memcpy(deltaBuf + deltaLen, newBuf + inputPos, length);
-//             deltaLen += length;
-//             set_length(&record2, get_length(&record2) + length);
-//           } else {
-//             set_length(&record2, length);
-
-//             memcpy(deltaBuf + deltaLen, &record2, sizeof(DeltaUnit2));
-//             deltaLen += sizeof(DeltaUnit2);
-
-//             memcpy(deltaBuf + deltaLen, newBuf + inputPos, length);
-//             deltaLen += length;
-
-//             flag = 2;
-//           }
-
-//           inputPos = cursor_input;
-//         }
-//       }
-
-//       flag_handle_probe = 0;
-//     }
-
-//     cursor_input =
-//         chunk_gear(newBuf + inputPos, newSize - inputPos - endSize) + inputPos;
-//     matchsum++;
-//     length = cursor_input - inputPos;
-//     hash = weakHash(newBuf + inputPos, length);
-
-//     /* lookup */
-//     res3 = psHTable_->find(hash);
-//     if (res3 != psHTable_->end())
-//     {
-//     psDupSubCnk = res3->second;
-//     // printf("inputPos: %d length: %d\n", inputPos, length);
-//     match:
-//       if (length == psDupSubCnk->nLength &&
-//           memcmp(newBuf + inputPos, baseBuf + psDupSubCnk->nOffset, length) ==
-//               0) {
-//         //	printf("match:%d\n",length);
-//         match++;
-//         if (flag == 2) {
-//           /* continuous unique chunks only add unique bytes into the deltaBuf,
-//            * but not change the last DeltaUnit2, so the DeltaUnit2 should be
-//            * overwritten when flag=1 or at the end of the loop.
-//            */
-//           memcpy(deltaBuf + deltaLen - get_length(&record2) -
-//                      sizeof(DeltaUnit2),
-//                  &record2, sizeof(DeltaUnit2));
-//         }
-
-//         // greedily detect forward
-//         int j = 0;
-
-//         while (psDupSubCnk->nOffset + length + j + 7 < baseSize - endSize &&
-//                cursor_input + j + 7 < newSize - endSize) {
-//           if (*(uint64_t *)(baseBuf + psDupSubCnk->nOffset + length + j) ==
-//               *(uint64_t *)(newBuf + cursor_input + j)) {
-//             j += 8;
-//           } else
-//             break;
-//         }
-//         while (psDupSubCnk->nOffset + length + j < baseSize - endSize &&
-//                cursor_input + j < newSize - endSize) {
-//           if (baseBuf[psDupSubCnk->nOffset + length + j] ==
-//               newBuf[cursor_input + j]) {
-//             j++;
-//           } else
-//             break;
-//         }
-
-//         cursor_input += j;
-//         if (psDupSubCnk->nOffset + length + j > cursor_base)
-//           cursor_base = psDupSubCnk->nOffset + length + j;
-
-//         set_length(&record1, cursor_input - inputPos);
-//         record1.nOffset = psDupSubCnk->nOffset;
-
-//         /* detect backward */
-//         uint32_t k = 0;
-//         if (flag == 2) {
-//           while (k + 1 <= psDupSubCnk->nOffset &&
-//                  k + 1 <= get_length(&record2)) {
-//             if (baseBuf[psDupSubCnk->nOffset - (k + 1)] ==
-//                 newBuf[inputPos - (k + 1)])
-//               k++;
-//             else
-//               break;
-//           }
-//         }
-//         if (k > 0) {
-//           deltaLen -= get_length(&record2);
-//           deltaLen -= sizeof(DeltaUnit2);
-
-//           set_length(&record2, get_length(&record2) - k);
-
-//           if (get_length(&record2) > 0) {
-//             memcpy(deltaBuf + deltaLen, &record2, sizeof(DeltaUnit2));
-//             deltaLen += sizeof(DeltaUnit2);
-//             deltaLen += get_length(&record2);
-//           }
-
-//           set_length(&record1, get_length(&record1) + k);
-//           record1.nOffset -= k;
-//         }
-
-//         memcpy(deltaBuf + deltaLen, &record1, sizeof(DeltaUnit1));
-//         deltaLen += sizeof(DeltaUnit1);
-//         flag = 1;
-//       } else {
-//         // printf("Spooky Hash Error!!!!!!!!!!!!!!!!!!\n");
-//         goto handle_hash_error;
-//       }
-//     } else {
-//     handle_hash_error:
-//       //	printf("unmatch:%d\n",length);
-//       if (flag == 2) {
-//         /* continuous unique chunks only add unique bytes into the deltaBuf,
-//          * but not change the last DeltaUnit2, so the DeltaUnit2 should be
-//          * overwritten when flag=1 or at the end of the loop.
-//          */
-//         memcpy(deltaBuf + deltaLen, newBuf + inputPos, length);
-//         deltaLen += length;
-//         set_length(&record2, get_length(&record2) + length);
-//       } else {
-//         set_length(&record2, length);
-
-//         memcpy(deltaBuf + deltaLen, &record2, sizeof(DeltaUnit2));
-//         deltaLen += sizeof(DeltaUnit2);
-
-//         memcpy(deltaBuf + deltaLen, newBuf + inputPos, length);
-//         deltaLen += length;
-
-//         flag = 2;
-//       }
-//     }
-
-//     inputPos = cursor_input;
-//     // printf("cursor_input:%d\n",inputPos);
-//   }
-
-//   if (flag == 2) {
-//     /* continuous unique chunks only add unique bytes into the deltaBuf,
-//      * but not change the last DeltaUnit2, so the DeltaUnit2 should be
-//      * overwritten when flag=1 or at the end of the loop.
-//      */
-//     memcpy(deltaBuf + deltaLen - get_length(&record2) - sizeof(DeltaUnit2),
-//            &record2, sizeof(DeltaUnit2));
-//   }
-
-//   if (end) {
-//     record1.nOffset = baseSize - endSize;
-//     set_length(&record1, endSize);
-//     memcpy(deltaBuf + deltaLen, &record1, sizeof(DeltaUnit1));
-//     deltaLen += sizeof(DeltaUnit1);
-//   }
-
-// //   if (psHTable) {
-// //     free(psHTable->table);
-// //     free(psHTable);
-// //   }
-
-//     // for(auto kv = psHTable_->begin(); kv != psHTable_->end(); )
-//     // {
-//     //     uint64_t key = kv->first;
-//     //     DeltaRecord* value = kv->second;
-//     //     free(value);
-//     //     kv = psHTable_->erase(kv);
-//     // }
-
-//     psHTable_->clear();
-
-// //   free(BaseLink);
-  
-// //   deltaLen = 1;
-//   *deltaSize = deltaLen;
-//   return deltaLen;
-// // // *deltaSize = 1024;
-// // //   return 1024;
-// //   *deltaSize = 1024;
-// //   return 1024;
-// }
-
-int EcallFreqIndex::EDeltaEncode(uint8_t *newBuf, uint32_t newSize, uint8_t *baseBuf,
-                 uint32_t baseSize, uint8_t *deltaBuf, uint32_t *deltaSize) {
-  /* detect the head and tail of one chunk */
-  uint32_t beg = 0, end = 0, begSize = 0, endSize = 0;
-  float matchsum = 0;
-  float match = 0;
-  while (begSize + 7 < baseSize && begSize + 7 < newSize) {
-    if (*(uint64_t *)(baseBuf + begSize) == *(uint64_t *)(newBuf + begSize)) {
-      begSize += 8;
-    } else
-      break;
-  }
-  while (begSize < baseSize && begSize < newSize) {
-    if (baseBuf[begSize] == newBuf[begSize]) {
-      begSize++;
-    } else
-      break;
-  }
-
-  if (begSize > 16)
-    beg = 1;
-  else
-    begSize = 0;
-
-  while (endSize + 7 < baseSize && endSize + 7 < newSize) {
-    if (*(uint64_t *)(baseBuf + baseSize - endSize - 8) ==
-        *(uint64_t *)(newBuf + newSize - endSize - 8)) {
-      endSize += 8;
-    } else
-      break;
-  }
-  while (endSize < baseSize && endSize < newSize) {
-    if (baseBuf[baseSize - endSize - 1] == newBuf[newSize - endSize - 1]) {
-      endSize++;
-    } else
-      break;
-  }
-
-  if (begSize + endSize > newSize)
-    endSize = newSize - begSize;
-
-  if (endSize > 16)
-    end = 1;
-  else
-    endSize = 0;
-  /* end of detect */
-
-  if (begSize + endSize >= baseSize) {
-    DeltaUnit1 record1;
-    DeltaUnit2 record2;
-    uint32_t deltaLen = 0;
-    if (beg) {
-      set_flag(&record1, 0);
-      record1.nOffset = 0;
-      set_length(&record1, begSize);
-      memcpy(deltaBuf + deltaLen, &record1, sizeof(DeltaUnit1));
-      deltaLen += sizeof(DeltaUnit1);
-    }
-    if (newSize - begSize - endSize > 0) {
-      set_flag(&record2, 1);
-      set_length(&record2, newSize - begSize - endSize);
-      memcpy(deltaBuf + deltaLen, &record2, sizeof(DeltaUnit2));
-      deltaLen += sizeof(DeltaUnit2);
-      memcpy(deltaBuf + deltaLen, newBuf + begSize, get_length(&record2));
-      deltaLen += get_length(&record2);
-    }
-    if (end) {
-      set_flag(&record1, 0);
-      record1.nOffset = baseSize - endSize;
-      set_length(&record1, endSize);
-      memcpy(deltaBuf + deltaLen, &record1, sizeof(DeltaUnit1));
-      deltaLen += sizeof(DeltaUnit1);
-    }
-
-    *deltaSize = deltaLen;
-    return deltaLen;
-  }
-
-  uint32_t deltaLen = 0;
-  uint32_t cursor_base = begSize;
-  uint32_t cursor_input = begSize;
-  uint32_t cursor_input1 = 0;
-  uint32_t cursor_input2 = 0;
-  uint32_t input_last_chunk_beg = begSize;
-  uint32_t inputPos = begSize;
-  uint32_t length;
-  uint64_t hash;
-  DeltaRecord *psDupSubCnk = NULL;
-  DeltaUnit1 record1{0, 0};
-  DeltaUnit2 record2{0};
-  set_flag(&record1, 0);
-  set_flag(&record2, 1);
-  int flag = 0; /* to represent the last record in the deltaBuf,
-       1 for DeltaUnit1, 2 for DeltaUnit2 */
-
-  int numBase = 0;  /* the total number of chunks that the base has chunked */
-  int numBytes = 0; /* the number of bytes that the base chunks once */
-//   DeltaRecord *BaseLink = (DeltaRecord *)malloc(
-//       sizeof(DeltaRecord) * ((baseSize - begSize - endSize) / STRMIN + 50));
-  DeltaRecord *BaseLink = BaseLink_;
-
-  int offset = (char *)&BaseLink[0].psNextSubCnk - (char *)&BaseLink[0];
-  htable *psHTable = psHTable2_;
-  // psHTable->init(offset, 8, baseSize/16);
-#if POST_DEDUP
-  psHTable->init(offset, 8, (baseSize - begSize - endSize) * 2 / (STRAVG + 1));
-#else
-  psHTable2_->SetOffset(offset);
-//   init(offset, 8, 8 * 1024);
-#endif
-
-  // int chunk_length;
-  int flag_chunk = 1; // to tell if basefile has been chunked to the end
-  int numBytes_old;
-  int numBytes_accu = 0; // accumulated numBytes in one turn of chunking the
-                         // base
-  int probe_match; // to tell which chunk for probing matches the some base
-  int flag_handle_probe; // to tell whether the probe chunks need to be handled
-
-  if (beg) {
-    record1.nOffset = 0;
-    set_length(&record1, begSize);
-    memcpy(deltaBuf + deltaLen, &record1, sizeof(DeltaUnit1));
-    deltaLen += sizeof(DeltaUnit1);
-    flag = 1;
-  }
-
-#define BASE_BEGIN 5
-#define BASE_EXPAND 3
-#define BASE_STEP 3
-#define INPUT_TRY 5
-
-/* if deltaLen > newSize * RECOMPRESS_THRESHOLD in the first round,we'll
- * go back to greedy.
- */
-#define GO_BACK_TO_GREEDY 0
-
-#define RECOMPRESS_THRESHOLD 0.2
-
-  DeltaRecord InputLink[INPUT_TRY];
-  // int test=0;
-
-  while (inputPos < newSize - endSize) {
-    if (flag_chunk) {
-      //		if( cursor_input - input_last_chunk_beg >= numBytes_accu
-      //* 0.8 ){
-      if ((cursor_input / (float)newSize) + 0.5 >=
-          (cursor_base / (float)baseSize)) {
-        numBytes_old = numBytes_accu;
-        numBytes_accu = 0;
-
-        /* chunk a few chunks in the input first */
-        // Chunking_v3(newBuf+cursor_input, newSize-endSize-cursor_input,
-        // INPUT_TRY, InputLink);
-        flag_handle_probe = 1;
-        probe_match = INPUT_TRY;
-        int chunk_number = BASE_BEGIN;
-        for (int i = 0; i < BASE_STEP; i++) {
-          numBytes = Chunking_v3(
-              baseBuf + cursor_base, baseSize - endSize - cursor_base,
-              chunk_number,
-              BaseLink + numBase); //一个分块base的循环找到 match的就可以跳出
-
-          for (int j = 0; j < chunk_number; j++) {
-            if (BaseLink[numBase + j].nLength == 0) {
-              flag_chunk = 0;
-              break;
-            }
-            BaseLink[numBase + j].nOffset += cursor_base;
-            psHTable->insert((unsigned char *)&BaseLink[numBase + j].nHash,
-                             &BaseLink[numBase + j]);
-          }
-
-          cursor_base += numBytes;
-          numBase += chunk_number;
-          numBytes_accu += numBytes;
-
-          chunk_number *= BASE_EXPAND;
-          if (i == 0) {
-            cursor_input1 = cursor_input;
-            for (int j = 0; j < INPUT_TRY; j++) {
-              cursor_input2 = cursor_input1;
-              cursor_input1 = chunk_gear(newBuf + cursor_input2,
-                                         newSize - cursor_input2 - endSize) +
-                              cursor_input2;
-              InputLink[j].nLength = cursor_input1 - cursor_input2;
-              InputLink[j].nHash =
-                  weakHash(newBuf + cursor_input2, InputLink[j].nLength);
-              if ((psDupSubCnk = (DeltaRecord *)psHTable->lookup(
-                       (unsigned char *)&(InputLink[j].nHash)))) {
-                probe_match = j;
-                goto lets_break;
-              }
-            }
-          } else {
-            for (int j = 0; j < INPUT_TRY; j++) {
-              if ((psDupSubCnk = (DeltaRecord *)psHTable->lookup(
-                       (unsigned char *)&(InputLink[j].nHash)))) {
-                //printf("find INPUT_TRY: %d BASE_STEP: %d" 
-								//	" cursor_input: %d round of chunk: %d\n",
-                //	j,i,cursor_input,test);
-                probe_match = j;
-                goto lets_break;
-              }
-            }
-          }
-
-          if (flag_chunk == 0)
-          lets_break:
-            break;
-        }
-
-        input_last_chunk_beg =
-            (cursor_input > (input_last_chunk_beg + numBytes_old)
-                 ? cursor_input
-                 : (input_last_chunk_beg + numBytes_old));
-        // test++;
-      }
-    }
-
-    // to handle the chunks in input file for probing
-    if (flag_handle_probe) {
-      for (int i = 0; i < INPUT_TRY; i++) {
-        matchsum++;
-        length = InputLink[i].nLength;
-        cursor_input = length + inputPos;
-
-        if (i == probe_match) {
-          flag_handle_probe = 0;
-          goto match;
-        } else {
-          if (flag == 2) { //把不match的块弄过去
-            /* continuous unique chunks only add unique bytes into the deltaBuf,
-             * but not change the last DeltaUnit2, so the DeltaUnit2 should be
-             * overwritten when flag=1 or at the end of the loop.
-             */
-            memcpy(deltaBuf + deltaLen, newBuf + inputPos, length);
-            deltaLen += length;
-            set_length(&record2, get_length(&record2) + length);
-          } else {
-            set_length(&record2, length);
-
-            memcpy(deltaBuf + deltaLen, &record2, sizeof(DeltaUnit2));
-            deltaLen += sizeof(DeltaUnit2);
-
-            memcpy(deltaBuf + deltaLen, newBuf + inputPos, length);
-            deltaLen += length;
-
-            flag = 2;
-          }
-
-          inputPos = cursor_input;
-        }
-      }
-
-      flag_handle_probe = 0;
-    }
-
-    cursor_input =
-        chunk_gear(newBuf + inputPos, newSize - inputPos - endSize) + inputPos;
-    matchsum++;
-    length = cursor_input - inputPos;
-    hash = weakHash(newBuf + inputPos, length);
-
-    /* lookup */
-    if ((psDupSubCnk =
-             (DeltaRecord *)psHTable->lookup((unsigned char *)&hash))) {
-    // printf("inputPos: %d length: %d\n", inputPos, length);
-    match:
-      if (length == psDupSubCnk->nLength &&
-          memcmp(newBuf + inputPos, baseBuf + psDupSubCnk->nOffset, length) ==
-              0) {
-        //	printf("match:%d\n",length);
-        match++;
-        if (flag == 2) {
-          /* continuous unique chunks only add unique bytes into the deltaBuf,
-           * but not change the last DeltaUnit2, so the DeltaUnit2 should be
-           * overwritten when flag=1 or at the end of the loop.
-           */
-          memcpy(deltaBuf + deltaLen - get_length(&record2) -
-                     sizeof(DeltaUnit2),
-                 &record2, sizeof(DeltaUnit2));
-        }
-
-        // greedily detect forward
-        int j = 0;
-
-        while (psDupSubCnk->nOffset + length + j + 7 < baseSize - endSize &&
-               cursor_input + j + 7 < newSize - endSize) {
-          if (*(uint64_t *)(baseBuf + psDupSubCnk->nOffset + length + j) ==
-              *(uint64_t *)(newBuf + cursor_input + j)) {
-            j += 8;
-          } else
-            break;
-        }
-        while (psDupSubCnk->nOffset + length + j < baseSize - endSize &&
-               cursor_input + j < newSize - endSize) {
-          if (baseBuf[psDupSubCnk->nOffset + length + j] ==
-              newBuf[cursor_input + j]) {
-            j++;
-          } else
-            break;
-        }
-
-        cursor_input += j;
-        if (psDupSubCnk->nOffset + length + j > cursor_base)
-          cursor_base = psDupSubCnk->nOffset + length + j;
-
-        set_length(&record1, cursor_input - inputPos);
-        record1.nOffset = psDupSubCnk->nOffset;
-
-        /* detect backward */
-        uint32_t k = 0;
-        if (flag == 2) {
-          while (k + 1 <= psDupSubCnk->nOffset &&
-                 k + 1 <= get_length(&record2)) {
-            if (baseBuf[psDupSubCnk->nOffset - (k + 1)] ==
-                newBuf[inputPos - (k + 1)])
-              k++;
-            else
-              break;
-          }
-        }
-        if (k > 0) {
-          deltaLen -= get_length(&record2);
-          deltaLen -= sizeof(DeltaUnit2);
-
-          set_length(&record2, get_length(&record2) - k);
-
-          if (get_length(&record2) > 0) {
-            memcpy(deltaBuf + deltaLen, &record2, sizeof(DeltaUnit2));
-            deltaLen += sizeof(DeltaUnit2);
-            deltaLen += get_length(&record2);
-          }
-
-          set_length(&record1, get_length(&record1) + k);
-          record1.nOffset -= k;
-        }
-
-        memcpy(deltaBuf + deltaLen, &record1, sizeof(DeltaUnit1));
-        deltaLen += sizeof(DeltaUnit1);
-        flag = 1;
-      } else {
-        // printf("Spooky Hash Error!!!!!!!!!!!!!!!!!!\n");
-        goto handle_hash_error;
-      }
-    } else {
-    handle_hash_error:
-      //	printf("unmatch:%d\n",length);
-      if (flag == 2) {
-        /* continuous unique chunks only add unique bytes into the deltaBuf,
-         * but not change the last DeltaUnit2, so the DeltaUnit2 should be
-         * overwritten when flag=1 or at the end of the loop.
-         */
-        memcpy(deltaBuf + deltaLen, newBuf + inputPos, length);
-        deltaLen += length;
-        set_length(&record2, get_length(&record2) + length);
-      } else {
-        set_length(&record2, length);
-
-        memcpy(deltaBuf + deltaLen, &record2, sizeof(DeltaUnit2));
-        deltaLen += sizeof(DeltaUnit2);
-
-        memcpy(deltaBuf + deltaLen, newBuf + inputPos, length);
-        deltaLen += length;
-
-        flag = 2;
-      }
-    }
-
-    inputPos = cursor_input;
-    // printf("cursor_input:%d\n",inputPos);
-  }
-
-  if (flag == 2) {
-    /* continuous unique chunks only add unique bytes into the deltaBuf,
-     * but not change the last DeltaUnit2, so the DeltaUnit2 should be
-     * overwritten when flag=1 or at the end of the loop.
-     */
-    memcpy(deltaBuf + deltaLen - get_length(&record2) - sizeof(DeltaUnit2),
-           &record2, sizeof(DeltaUnit2));
-  }
-
-  if (end) {
-    record1.nOffset = baseSize - endSize;
-    set_length(&record1, endSize);
-    memcpy(deltaBuf + deltaLen, &record1, sizeof(DeltaUnit1));
-    deltaLen += sizeof(DeltaUnit1);
-  }
-
-//   if (psHTable) {
-//     free(psHTable->table);
-//     free(psHTable);
-//   }
-  psHTable->ResetTable();
-
-//   free(BaseLink);
-
-  *deltaSize = deltaLen;
-  return deltaLen;
-}
-
-int EcallFreqIndex::EDeltaDecode(uint8_t *deltaBuf, uint32_t deltaSize, uint8_t *baseBuf,
-                 uint32_t baseSize, uint8_t *outBuf, uint32_t *outSize) {
-
-  uint32_t dataLength = 0, readLength = 0;
-  int matchnum = 0;
-  // int matchlength = 0;
-  // int unmatchlength = 0;
-  int unmatchnum = 0;
-  while (1) {
-    u_int32_t flag = get_flag(deltaBuf + readLength);
-
-    if (flag == 0) {
-      matchnum++;
-      DeltaUnit1 record;
-      memcpy(&record, deltaBuf + readLength, sizeof(DeltaUnit1));
-      readLength += sizeof(DeltaUnit1);
-      // matchlength += get_length(&record);
-      memcpy(outBuf + dataLength, baseBuf + record.nOffset,
-             get_length(&record));
-
-      dataLength += get_length(&record);
-    } else {
-      unmatchnum++;
-      DeltaUnit2 record;
-      memcpy(&record, deltaBuf + readLength, sizeof(DeltaUnit2));
-      readLength += sizeof(DeltaUnit2);
-      // unmatchlength += get_length(&record);
-      memcpy(outBuf + dataLength, deltaBuf + readLength, get_length(&record));
-
-      readLength += get_length(&record);
-      dataLength += get_length(&record);
-    }
-
-    if (readLength >= deltaSize) {
-      break;
-    }
-  }
-  *outSize = dataLength;
-  return dataLength;
-}

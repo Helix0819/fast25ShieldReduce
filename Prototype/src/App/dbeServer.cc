@@ -104,12 +104,6 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
-#if (IS_MERGE_CONTAINER == 1)
-    tool::Logging(myName.c_str(), "In GC, cloud will merge base container\n");
-#else
-    tool::Logging(myName.c_str(), "In GC, cloud will NOT merge base container\n");
-#endif
-
     // parse the arg
     int indexType;
     while ((option = getopt(argc, argv, optString)) != -1) {
@@ -179,19 +173,6 @@ int main(int argc, char* argv[]) {
             clientSSL));
         thList.push_back(thTmp);
     }
-
-    // for (int i = 0; i < 40; i++)
-    // {
-    //     tool::Logging(myName.c_str(), "waiting the request from the client.\n");
-    //     SSL* clientSSL = dataSecurityChannelObj->ListenSSL().second;
-    //     serverThreadObj->Run(clientSSL);
-    // }
-
-    // sgx_destroy_enclave(eidSGX);
-    // Ecall_Enclave_Destroy(eidSGX); 
-    
-    // delete fp2ChunkDB;
-    // delete dataSecurityChannelObj;
 
     return 0;
 }

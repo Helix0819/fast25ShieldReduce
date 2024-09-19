@@ -71,6 +71,8 @@ class ClientVar {
         Container_t _curContainer; // current container buffer
         Container_t _curDeltaContainer; //current delta container buffer
 
+        uint8_t* outRefContainerBuffer_;
+
         OutQuery_t _outQuery; // the buffer to store the encrypted chunk fp
         MessageQueue<Container_t>* _inputMQ;
         SendMsgBuffer_t _recvChunkBuf;
@@ -90,14 +92,7 @@ class ClientVar {
         uint8_t* _out_buffer;
         uint8_t* _test_buffer;
         DeltaMapInfo_t _deltaInfo;
-
-        // for merge container;
         
-        // std::vector<fs::path> deltaContainerList_;
-        std::vector<pair<string, string>> baseMergePair;
-        // uint8_t* _mergeContainerBuffer;
-        Container_t _mergeContianer;
-        // std::vector<pair<string, string>> deltaMergePair;
 
         SSL* _clientSSL; // connection
 

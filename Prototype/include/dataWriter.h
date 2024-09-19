@@ -33,6 +33,9 @@ class DataWriter {
         // the tail of the container path
         string containerNameTail_;
 
+        // the num of the written containers 
+        uint64_t containerNum_ = 0;
+
 #if (DATAWRITER_BREAKDOWN == 1)
         // the time of writing container
         double writeTime_ = 0;
@@ -41,8 +44,6 @@ class DataWriter {
         // ThreadPool* threadPool_;
 
     public:
-        // the num of the written containers 
-        uint64_t containerNum_ = 0;
 
         /**
          * @brief Construct a new Data Writer object

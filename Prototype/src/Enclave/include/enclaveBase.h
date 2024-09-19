@@ -134,7 +134,6 @@ class EnclaveBase {
         long long _baseChunkNum = 0;
         uint64_t _baseDataSize = 0;
         uint64_t _deltaChunkNum = 0;
-        uint64_t _inlineDeltaChunkNum = 0;
         uint64_t _deltaDataSize = 0;
         long long _lz4SaveSize = 0;
         uint64_t _DeltaSaveSize = 0;
@@ -149,10 +148,6 @@ class EnclaveBase {
         uint64_t _compressedDataSize = 0;
         uint64_t _onlineCompress_size = 0;
         uint64_t _onlineBackupSize = 0;
-        uint64_t _inline_batch_num = 0;
-        uint64_t _inline_have_similar_chunk_num = 0;
-        uint64_t _inline_need_load_container_num = 0;
-
 
 #if(EDR_BREAKDOWN == 1)
     uint64_t _startTime;

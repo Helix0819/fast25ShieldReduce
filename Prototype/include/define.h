@@ -194,6 +194,14 @@ namespace tool {
         return ;
     }
 
+    inline void CreateUUID1(char* buffer, size_t idLen) {
+        for (size_t i = 0; i < idLen; i++) {
+            char* pos = buffer + i;
+            *pos = ALPHABET[rand() % sizeof(ALPHABET)];
+        }
+        return ;
+    }
+
     inline bool FileExist(std::string filePath) {
         return std::filesystem::is_regular_file(filePath);
     }

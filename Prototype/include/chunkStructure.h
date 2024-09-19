@@ -92,20 +92,6 @@ typedef struct {
     uint64_t inline_Ocall;
     uint64_t offline_Ocall;
 
-    // for Ocall breakdown;
-    uint64_t _Inline_FPOcall;
-    uint64_t _Inline_SFOcall;
-    uint64_t _Inline_LocalOcall;
-    uint64_t _Inline_LoadOcall;
-    uint64_t _Inline_DeltaOcall;
-    uint64_t _Inline_RecipeOcall;
-    uint64_t _Inline_Write_ContainerOcall;
-    uint64_t _Inline_Tail_ContainerOcall;
-    uint64_t _inline_have_similar_chunk_num;
-    uint64_t _inline_need_load_container_num;
-    uint64_t _inlineDeltaChunkNum;
-    // double _inline_average_similarity;
-
     double restoreTime;
 
 #if(EDR_BREAKDOWN == 1)
@@ -246,8 +232,6 @@ typedef struct {
     uint8_t* out_buffer;
     uint8_t* test_buffer;
     DeltaMapInfo_t* deltaInfo;
-    uint8_t jobDoneFlag;
-    Container_t* mergeContainer;
 } UpOutSGX_t;
 
 typedef struct {

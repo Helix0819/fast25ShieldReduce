@@ -7,9 +7,6 @@
 #include "../../../include/absDatabase.h"
 #include "../../../include/dataWriter.h"
 #include "../../../include/enclaveRecvDecoder.h"
-#include <vector>
-#include <filesystem>
-#include <sys/stat.h>
 
 #include "sgx_urts.h"
 
@@ -283,7 +280,7 @@ void Ocall_GetLocal( void* outClient);
  * 
  * @param outClient the out-enclave client ptr
  */
-void Ocall_LocalInsert(void* outClient, size_t chunkNum);
+void Ocall_LocalInsert( void* outClient);
 
 /**
  * @brief sort local index
@@ -304,7 +301,7 @@ void Ocall_QueryDeltaIndex(void* outClient);
  * 
  * @param outClient the out-enclave client ptr
  */
-void Ocall_UpdateDeltaIndex(void* outClient, size_t chunkNum);
+void Ocall_UpdateDeltaIndex(void* outClient);
 
 /**
  * @brief insert cold pair
@@ -333,13 +330,5 @@ void Ocall_Coldrevise(void* outClient);
  * @param outClient the out-enclave client ptr
  */
 void Ocall_CleanLocalIndex();
-
-void Ocall_GetMergeContainer(void* outClient);
-
-void Ocall_CleanMerge(void* outClient);
-
-void Ocall_GetMergePair(void* outClient, uint8_t* containerID, uint32_t* size);
-
-void Ocall_MergeContent(void* outClient, uint8_t* containerBody, size_t currentSize);
 
 #endif //  ENC_OCALL_H!

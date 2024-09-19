@@ -155,7 +155,6 @@ void InContainercache::InsertToCache_Offline(string& name, const char* data, uin
         memcpy(containerPool_[currentIndex_], data, length);
         inCache_->insert(name, currentIndex_);
         currentIndex_++;
-
     }
 
     return;

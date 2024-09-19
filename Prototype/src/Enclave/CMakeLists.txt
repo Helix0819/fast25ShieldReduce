@@ -10,7 +10,7 @@ aux_source_directory(ecallSrc/edelta EDELTA_SRC)
 
 aux_source_directory(ecallSrc/moti ECALL_MOTI_SRC)
 
-set(TRUST_SRC ${ECALL_SRC} ${ECALL_INDEX_SRC} ${ECALL_STORE_SRC} ${ECALL_UTIL_SRC} ${ECALL_MOTI_SRC}  ${EDELTA_SRC})
+set(TRUST_SRC ${ECALL_SRC} ${ECALL_INDEX_SRC} ${ECALL_STORE_SRC} ${ECALL_UTIL_SRC} ${ECALL_MOTI_SRC} ${EDELTA_SRC})
 set(UNTRUST_SRC ${OCALL_SRC})
 
 set(SGXOPENSSL_INCLUDE_PATH /opt/intel/sgxssl/include)

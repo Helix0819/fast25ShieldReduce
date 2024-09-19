@@ -17,7 +17,7 @@
         "readCacheSize_": 64
     },
     "DataSender": {
-        "storageServerIp_": "172.28.114.90",
+        "storageServerIp_": "172.28.114.96",
         "storageServerPort_": 17777,
         "clientID_": 1,
         "localSecret_": "12345",
